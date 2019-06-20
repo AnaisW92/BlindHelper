@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <TextView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="Blind Helper"
+        android:textStyle="bold"
+        android:textColor="#000FFF"
+        android:textSize="40sp"
+        android:gravity="center" />
+
+    <Button
+        android:id="@+id/IMU"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="IMU Tracking" />
+    <Button
+        android:id="@+id/Camera"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="Camera" />
+    <Button
+        android:id="@+id/Files"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="Files" />
+    <Button
+        android:id="@+id/Config"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="Configuration" />
+
+
+
+
+</LinearLayout>
