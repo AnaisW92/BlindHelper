@@ -161,7 +161,7 @@ public class BluetoothLeService extends Service {
 
         if (data != null && data.length > 0) {
 
-            if(PacketFormatActivity.button_10000.isChecked()){
+            if(PacketActivity.button_10000.isChecked()){
                 for (int i = 0; i < data.length; i++) {
                     // check if we reached the delimiter and the data is complete
                     //if ( data[i] == mDELIMITER ) {
@@ -209,7 +209,7 @@ public class BluetoothLeService extends Service {
             }
 
 
-            else if (PacketFormatActivity.button_12800.isChecked()) {
+            else if (PacketActivity.button_12800.isChecked()) {
                 if (data.length == 16) {
                     intent.putExtra(EXTRA_DATA, data);
                     sendBroadcast(intent);

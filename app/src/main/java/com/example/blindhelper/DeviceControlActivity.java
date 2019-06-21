@@ -153,9 +153,9 @@ public class DeviceControlActivity extends Activity {
                     // Convert the received Byte array to a meaningful Integer array, and store it in file.
                     // Format :
                     // ax,ay,az,gx,gy,gz,time
-                    if (PacketFormatActivity.button_10000.isChecked())
+                    if (PacketActivity.button_10000.isChecked())
                         writeFile10000(data, SEQNBR_BYTES, SAMPLE_TIME, SAMPLE_BYTES);
-                    else if (PacketFormatActivity.button_12800.isChecked())
+                    else if (PacketActivity.button_12800.isChecked())
                         writeFile12800(data, TIME_BYTES);
                 } else Log.v("FILE", "data NULL");
 
@@ -188,7 +188,7 @@ public class DeviceControlActivity extends Activity {
     private View.OnClickListener packetClickListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
-            Intent packet_activity = new Intent(DeviceControlActivity.this, PacketFormatActivity.class);
+            Intent packet_activity = new Intent(DeviceControlActivity.this, PacketActivity.class);
             startActivity(packet_activity);
         }
     };
@@ -206,7 +206,7 @@ public class DeviceControlActivity extends Activity {
                                             int childPosition, long id) {
                     if (mGattCharacteristics != null) {
 
-                        if ((PacketFormatActivity.button_10000 == null) && (PacketFormatActivity.button_12800 == null)){
+                        if ((PacketActivity.button_10000 == null) && (PacketActivity.button_12800 == null)){
                             Toast.makeText(DeviceControlActivity.this, "Please choose a packet format", Toast.LENGTH_LONG).show();
                             return true;
                         }

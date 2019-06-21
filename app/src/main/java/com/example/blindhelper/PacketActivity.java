@@ -15,10 +15,8 @@ import static com.example.blindhelper.PacketFormat.SAMPLE_BYTES;
 import static com.example.blindhelper.PacketFormat.SAMPLE_TIME;
 import static com.example.blindhelper.PacketFormat.SEQNBR_BYTES;
 import static com.example.blindhelper.PacketFormat.TIME_BYTES;
-import static com.example.blindhelper.PacketFormat.DATA_BYTES;
-import static com.example.blindhelper.PacketFormat.DELIMITER1;
 
-public class PacketFormatActivity extends Activity {
+public class PacketActivity extends Activity {
     TextView packet_information;
     public static RadioButton button_10000;
     public static RadioButton button_12800;
@@ -26,8 +24,8 @@ public class PacketFormatActivity extends Activity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.packet_information);
-        /*
+        setContentView(R.layout.packet);
+
 
         button_10000 = (RadioButton) findViewById(R.id.button_10000);
         button_12800 = (RadioButton) findViewById(R.id.button_12800);
@@ -70,7 +68,7 @@ public class PacketFormatActivity extends Activity {
                 packet_information = (TextView) findViewById(R.id.packet_format_values);
                 packet_information.setText(values);
             }
-        });*/
+        });
 
     }
 }
