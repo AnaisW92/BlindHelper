@@ -43,6 +43,9 @@
         import androidx.core.app.ActivityCompat;
         import androidx.core.content.ContextCompat;
 
+        import java.io.BufferedWriter;
+        import java.io.FileOutputStream;
+        import java.io.OutputStreamWriter;
         import java.util.ArrayList;
 
         /**
@@ -218,9 +221,29 @@
         mLeDeviceListAdapter.clear();
     }
 
-    /*@Override
+    @Override
     protected void onListItemClick(ListView l, View v, int position, long id) {
         final BluetoothDevice device = mLeDeviceListAdapter.getDevice(position);
+        if (device == null) return;
+        try {
+            FileOutputStream output = null;
+            output = openFileOutput("R.string.cane_file", Context.MODE_PRIVATE);
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(output));
+            bw.write(device.getName());
+            bw.newLine();
+            bw.write(device.getAddress());
+            bw.close();
+            output.close();
+
+        } catch(Exception e){
+            e.printStackTrace();
+        }
+        Intent affich_conf = new Intent(SearchActivity.this,
+                ConfigShowActivity.class);
+
+        startActivity(affich_conf);
+
+        /*final BluetoothDevice device = mLeDeviceListAdapter.getDevice(position);
         if (device == null) return;
         final Intent intent = new Intent(this, DeviceControlActivity.class);
         intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
@@ -229,8 +252,8 @@
             mBluetoothAdapter.stopLeScan(mLeScanCallback);
             mScanning = false;
         }
-        startActivity(intent);
-    }*/
+        startActivity(intent);*/
+    }
 
     private void scanLeDevice(final boolean enable) {
         if (enable) {
@@ -311,9 +334,9 @@
             final String deviceName = device.getName();
             if (deviceName != null && deviceName.length() > 0)
                 viewHolder.deviceName.setText(deviceName);
-            else
+            /*else
                 viewHolder.deviceName.setText(R.string.unknown_device);
-            viewHolder.deviceAddress.setText(device.getAddress());
+            viewHolder.deviceAddress.setText(device.getAddress());*/
 
             return view;
         }

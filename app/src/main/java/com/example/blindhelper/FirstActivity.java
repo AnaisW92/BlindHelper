@@ -6,7 +6,8 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.view.View;
 
-import com.example.blindhelper.R;
+import java.io.File;
+
 
 public class FirstActivity extends Activity {
     private Button Config = null;
@@ -21,6 +22,10 @@ public class FirstActivity extends Activity {
         IMU = (Button) findViewById(R.id.IMU);
         Camera = (Button) findViewById(R.id.Camera);
         Files = (Button) findViewById(R.id.Files);
+        File cane_file = new File(getFilesDir(), "R.string.cane_file");
+        File tight_file = new File(getFilesDir(), "R.string.tight_file");
+        File camera_file = new File(getFilesDir(), "R.string.camera_file");
+
 
         Config.setOnClickListener(new View.OnClickListener() {
             @Override
