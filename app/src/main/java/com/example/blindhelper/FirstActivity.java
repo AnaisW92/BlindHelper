@@ -34,6 +34,19 @@ public class FirstActivity extends Activity {
                 startActivity(secondeActivite);
             }
         });
+
+        IMU.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+// Le premier paramètre est le nom de l'activité actuelle
+// Le second est le nom de l'activité de destination
+                Intent secondeActivite = new Intent(FirstActivity.this,
+                        DeviceControlActivity.class);
+
+// Puis on lance l'intent !
+                startActivity(secondeActivite);
+            }
+        });
     }
 }
 

@@ -3,4 +3,20 @@
     android:orientation="vertical" android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <Button
+        android:id="@+id/cane"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="Cane sensor" />
+    <Button
+        android:id="@+id/tight"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="Tight sensor" />
+    <Button
+        android:id="@+id/camConnect"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="Camera to connect" />
+
 </LinearLayout>
