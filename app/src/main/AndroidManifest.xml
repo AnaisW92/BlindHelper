@@ -13,7 +13,7 @@
 
 
     <application android:label="@string/app_name"
-        android:icon="@drawable/tile"
+        android:icon="@drawable/logo"
         android:theme="@android:style/Theme.Holo.Light">
         <activity android:name=".FirstActivity"
             android:label="@string/app_name">

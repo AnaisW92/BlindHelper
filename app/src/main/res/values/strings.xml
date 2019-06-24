@@ -29,6 +29,7 @@
     <string name="cane_file">CaneSensorSaved</string>
     <string name="tight_file">TightSensorSaved.txt</string>
     <string name="camera_file">CameraSaved.txt</string>
+    <string name="err_config_file">Please configure the cane sensor</string>
 
     <!-- Menu items -->
     <string name="menu_connect">Connect</string>
