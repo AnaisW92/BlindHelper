@@ -56,7 +56,9 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 
@@ -92,7 +94,7 @@ public class DeviceControlActivity extends Activity {
             new ArrayList<ArrayList<BluetoothGattCharacteristic>>();
     private boolean mConnected = false;
     private BluetoothGattCharacteristic mNotifyCharacteristic;
-    private EditText mFileName;
+    //private EditText mFileName;
     private Button mStopButton;
     private Button mPacketFormatButton;
     private TextView mInstructions;
@@ -309,7 +311,7 @@ public class DeviceControlActivity extends Activity {
         mDataField = (TextView) findViewById(R.id.data_value);
 
         mInstructions = (TextView) findViewById(R.id.instruction);
-        mFileName = (EditText) findViewById(R.id.file_name);
+        //mFileName = (EditText) findViewById(R.id.file_name);
         mStopButton = (Button) findViewById(R.id.stopButton);
         mStopButton.setOnClickListener(stopClickListener);
         mPacketFormatButton = (Button) findViewById(R.id.packetFormatButton);
@@ -513,12 +515,15 @@ public class DeviceControlActivity extends Activity {
     // return null if no file name was provided or if the file cannot be created
     public String createDataFile(){
         String path = null;
-        String file_name = mFileName.getText().toString();
+        //String file_name = mFileName.getText().toString();
 
-        if(TextUtils.isEmpty(file_name)) {
+        String file_name = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
+        file_name = "cane_" + file_name;
+
+        /*if(TextUtils.isEmpty(file_name)) {
             mFileName.setError("Required");
             return null;
-        }
+        }*/
 
         // If there is external and writable storage
         if(Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()) && !Environment.MEDIA_MOUNTED_READ_ONLY.equals(Environment.getExternalStorageState())) {
@@ -628,10 +633,10 @@ public class DeviceControlActivity extends Activity {
     }
 
     public void setInitialUI(){
-        mFileName.setText("");
+       // mFileName.setText("");
         mDataField.setText(R.string.no_data);
         mPacketFormatButton.setEnabled(true);
-        mFileName.setEnabled(true);
+        //mFileName.setEnabled(true);
         mGattServicesList.setEnabled(true);
         mStopButton.setEnabled(false);
         mInstructions.setText(R.string.instruction_click_connect);
@@ -639,7 +644,7 @@ public class DeviceControlActivity extends Activity {
 
     public void setRecordingUI(){
         mPacketFormatButton.setEnabled(false);
-        mFileName.setEnabled(false);
+        //mFileName.setEnabled(false);
         mGattServicesList.setEnabled(false);
         mStopButton.setEnabled(true);
         updateInstructionState(R.string.recording);

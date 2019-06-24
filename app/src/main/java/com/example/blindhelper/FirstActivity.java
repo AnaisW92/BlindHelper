@@ -52,7 +52,19 @@ public class FirstActivity extends Activity {
                 startActivity(secondeActivite);
             }
         });
+
+        Files.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent secondeActivite = new Intent(FirstActivity.this,
+                        FilesActivity.class);
+
+                startActivity(secondeActivite);
+            }
+        });
+
     }
+
 }
 
 
