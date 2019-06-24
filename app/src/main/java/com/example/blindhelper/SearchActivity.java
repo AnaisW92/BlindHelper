@@ -28,6 +28,7 @@
         import android.content.pm.PackageManager;
         import android.location.LocationManager;
         import android.os.Bundle;
+        import android.os.Environment;
         import android.os.Handler;
         import android.provider.Settings;
         import android.view.LayoutInflater;
@@ -44,6 +45,8 @@
         import androidx.core.content.ContextCompat;
 
         import java.io.BufferedWriter;
+        import java.io.File;
+        import java.io.FileInputStream;
         import java.io.FileOutputStream;
         import java.io.OutputStreamWriter;
         import java.util.ArrayList;
@@ -227,7 +230,8 @@
         if (device == null) return;
         try {
             FileOutputStream output = null;
-            output = openFileOutput("R.string.cane_file", Context.MODE_PRIVATE);
+            File mFile = new File(Environment.getExternalStorageDirectory().getPath() + "/Android/data/BlindHelperConfig/" + "CaneSensor.txt");
+            output = new FileOutputStream(mFile);
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(output));
             bw.write(device.getName());
             bw.newLine();
@@ -288,7 +292,7 @@
         }
 
         public void addDevice(BluetoothDevice device) {
-            if(!mLeDevices.contains(device)) {
+            if((!mLeDevices.contains(device))&&(device.getName() != null) && (device.getName().length() > 0)) {
                 mLeDevices.add(device);
             }
         }
@@ -332,11 +336,7 @@
 
             BluetoothDevice device = mLeDevices.get(i);
             final String deviceName = device.getName();
-            if (deviceName != null && deviceName.length() > 0)
-                viewHolder.deviceName.setText(deviceName);
-            /*else
-                viewHolder.deviceName.setText(R.string.unknown_device);
-            viewHolder.deviceAddress.setText(device.getAddress());*/
+            viewHolder.deviceName.setText(deviceName);
 
             return view;
         }

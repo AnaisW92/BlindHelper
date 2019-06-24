@@ -26,7 +26,7 @@
         <activity android:name=".ConfigActivity"/>
         <activity android:name=".SearchActivity"/>
         <activity android:name=".DeviceControlActivity"/>
-        <activity android:name=".PacketFormatActivity"/>
+        <activity android:name=".PacketActivity"/>
         <activity android:name=".ConfigShowActivity"/>
         <service android:name=".BluetoothLeService" android:enabled="true"/>
     </application>

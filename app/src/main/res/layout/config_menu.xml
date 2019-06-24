@@ -14,9 +14,15 @@
         android:layout_height="wrap_content"
         android:text="Tight sensor" />
     <Button
-        android:id="@+id/camConnect"
+    android:id="@+id/camConnect"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:text="Camera to connect" />
+
+    <Button
+        android:id="@+id/ReturnMenu"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:text="Camera to connect" />
+        android:text="Go back to the menu" />
 
 </LinearLayout>

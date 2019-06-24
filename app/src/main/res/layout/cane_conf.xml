@@ -13,23 +13,56 @@
         android:gravity="center" />
 
     <TextView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="Name of the device"
+        android:textStyle="bold"
+        android:textSize="20sp"
+        android:gravity="left" />
+
+    <TextView
         android:id="@+id/NameCane"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:text="Name"
         android:textStyle="bold"
-        android:textColor="#000FFF"
-        android:textSize="40sp"
+        android:textColor="#F00FFF"
+        android:textSize="20sp"
         android:gravity="center" />
+
+    <TextView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="Bluetooth address"
+        android:textStyle="bold"
+        android:textSize="20sp"
+        android:gravity="left" />
 
     <TextView
         android:id="@+id/AddressCane"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:text="Address"
         android:textStyle="bold"
-        android:textColor="#000FFF"
-        android:textSize="40sp"
+        android:textColor="#F00FFF"
+        android:textSize="20sp"
         android:gravity="center" />
+
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:orientation="horizontal" android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+    <Button
+        android:id="@+id/ChangeCane"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Configure" />
+
+    <Button
+        android:id="@+id/ValidateCane"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Validate" />
+
+    </LinearLayout>
+
 
 </LinearLayout>
