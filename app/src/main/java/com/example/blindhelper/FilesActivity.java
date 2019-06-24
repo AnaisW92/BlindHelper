@@ -44,7 +44,9 @@ public class FilesActivity extends ListActivity {
 
 
             // On récupère la racine de la carte SD pour qu'elle soit le répertoire consulté au départ
-            mCurrentFile = Environment.getExternalStorageDirectory();
+            //mCurrentFile = Environment.getExternalStorageDirectory();
+            mCurrentFile = new File(Environment.getExternalStorageDirectory().getPath() + "/Android/data/");
+
 
 
             // On change le titre de l'activité pour y mettre le chemin actuel
@@ -55,8 +57,12 @@ public class FilesActivity extends ListActivity {
 
             // On transforme le tableau en une structure de données de taille variable
             ArrayList<File> liste = new ArrayList<File>();
-            for (File f : fichiers)
-                liste.add(f);
+            for (File f : fichiers) {
+
+                if (f.getName().equals("BlindHelperConfig")  || f.getName().equals("BlindHelperDataCane") || f.getName().equals("BlindHelperDataTight") || f.getName().equals("BlindHelperDataCam")) {
+                    liste.add(f);
+                }
+            }
 
             mAdapter = new FileAdapter(this, android.R.layout.simple_list_item_1, liste);
             // On ajoute l'adaptateur à la liste
@@ -84,7 +90,7 @@ public class FilesActivity extends ListActivity {
         }
     }
 
-    
+
 
     /**
      * Utilisé pour visualiser un fichier

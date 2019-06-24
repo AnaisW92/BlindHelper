@@ -50,12 +50,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -271,8 +273,8 @@ public class DeviceControlActivity extends Activity {
         try {
 
             FileInputStream input = null;
-            input = openFileInput("R.string.cane_file");
-
+            File mFile = new File(Environment.getExternalStorageDirectory().getPath() + "/Android/data/BlindHelperConfig/" + "CaneSensor.txt");
+            input = new FileInputStream(mFile);
             BufferedReader br = new BufferedReader(new InputStreamReader(input));
 
             mDeviceName = br.readLine();
@@ -528,7 +530,7 @@ public class DeviceControlActivity extends Activity {
         // If there is external and writable storage
         if(Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()) && !Environment.MEDIA_MOUNTED_READ_ONLY.equals(Environment.getExternalStorageState())) {
             try {
-                path = Environment.getExternalStorageDirectory().getPath() + "/Android/data/" + file_name + ".txt";
+                path = Environment.getExternalStorageDirectory().getPath() + "/Android/data/BlindHelperDataCane/" + file_name + ".txt";
                 mFile = new File(path);
 
                 mFile.createNewFile(); // create new file if it does not already exists
