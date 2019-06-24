@@ -19,6 +19,7 @@ package com.example.blindhelper;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.content.BroadcastReceiver;
@@ -48,10 +49,13 @@ import android.widget.SimpleExpandableListAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -251,6 +255,7 @@ public class DeviceControlActivity extends Activity {
         setInitialUI();
     }
 
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -259,8 +264,42 @@ public class DeviceControlActivity extends Activity {
         //final Intent intent = getIntent(); // returns the intent that started this activity
         // it is DeviceScanActivity, qui a mis en extra le nom et l'adresse du device sur lequel
         // on a cliqué
-        mDeviceName = "Cane";
-        mDeviceAddress = "24:0A:C4:83:26:B2";
+
+        // We get the name and address saved in the file after configuration
+        try {
+
+            FileInputStream input = null;
+            input = openFileInput("R.string.cane_file");
+
+            BufferedReader br = new BufferedReader(new InputStreamReader(input));
+
+            mDeviceName = br.readLine();
+            mDeviceAddress = br.readLine();
+            br.close();
+            input.close();
+        } catch(Exception e){
+            e.printStackTrace();
+            //Check if the configuration has been done
+            AlertDialog.Builder builder1 = new AlertDialog.Builder(this);
+            builder1.setMessage(R.string.err_config_file);
+            builder1.setCancelable(true);
+
+            builder1.setPositiveButton(
+                    "Back",
+                    new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int id) {
+                            dialog.cancel();
+                            Intent home = new Intent(DeviceControlActivity.this, FirstActivity.class);
+                            startActivity(home);
+                        }
+                    });
+
+            AlertDialog alert11 = builder1.create();
+            alert11.show();
+        }
+
+       // mDeviceName = "Cane";
+        //mDeviceAddress = "24:0A:C4:83:26:B2";
 
         // Sets up UI references.
         ((TextView) findViewById(R.id.device_address)).setText(mDeviceAddress);
