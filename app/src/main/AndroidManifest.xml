@@ -28,7 +28,7 @@
         <activity android:name=".PacketActivity"/>
         <activity android:name=".ConfigShowActivity"/>
         <activity android:name=".FilesActivity"/>
-
+        <activity android:name=".FileOpenActivity"/>
         <service android:name=".BluetoothLeService" android:enabled="true"/>
     </application>
 </manifest>

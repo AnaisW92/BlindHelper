@@ -12,6 +12,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.view.KeyEvent;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -42,12 +43,9 @@ public class FilesActivity extends ListActivity {
             // S'il l'est, on déclare qu'on veut un menu contextuel sur les éléments de la liste
             registerForContextMenu(mList);
 
-
             // On récupère la racine de la carte SD pour qu'elle soit le répertoire consulté au départ
             //mCurrentFile = Environment.getExternalStorageDirectory();
             mCurrentFile = new File(Environment.getExternalStorageDirectory().getPath() + "/Android/data/");
-
-
 
             // On change le titre de l'activité pour y mettre le chemin actuel
             setTitle(mCurrentFile.getAbsolutePath());
@@ -58,7 +56,6 @@ public class FilesActivity extends ListActivity {
             // On transforme le tableau en une structure de données de taille variable
             ArrayList<File> liste = new ArrayList<File>();
             for (File f : fichiers) {
-
                 if (f.getName().equals("BlindHelperConfig")  || f.getName().equals("BlindHelperDataCane") || f.getName().equals("BlindHelperDataTight") || f.getName().equals("BlindHelperDataCam")) {
                     liste.add(f);
                 }
@@ -85,34 +82,22 @@ public class FilesActivity extends ListActivity {
                         seeItem(fichier);
                 }
             });
-
-
         }
     }
-
-
 
     /**
      * Utilisé pour visualiser un fichier
      * @param pFile le fichier à visualiser
      */
     private void seeItem(File pFile) {
-        // On crée un intent
-        Intent i = new Intent(Intent.ACTION_VIEW);
-
+        Intent nextActivity = null;
         String ext = pFile.getName().substring(pFile.getName().indexOf(".") + 1).toLowerCase();
-        if(ext.equals("txt"))
-            i.setDataAndType(Uri.fromFile(pFile), "txt");
-        /** Faites en autant que vous le désirez */
-
-
-
-        try {
-            startActivity(i);
-            // Et s'il n'y a pas d'activité qui puisse gérer ce type de fichier
-        } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, "Oups, vous n'avez pas d'application qui puisse lancer ce fichier", Toast.LENGTH_SHORT).show();
-            e.printStackTrace();
+        if(ext.equals("txt")){
+            nextActivity = new Intent(FilesActivity.this,FileOpenActivity.class);
+            nextActivity.putExtra(FileOpenActivity.pathFile, pFile.getAbsolutePath());
+            startActivity(nextActivity);}
+        else {
+            Toast.makeText(this, "This file can't be opened here", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -147,16 +132,47 @@ public class FilesActivity extends ListActivity {
 
         // On récupère la liste des fichiers du nouveau répertoire
         File[] fichiers = mCurrentFile.listFiles();
+        File rootFile = new File(Environment.getExternalStorageDirectory().getPath() + "/Android/data/");
 
         // Si le répertoire n'est pas vide…
         if(fichiers != null) {
-            // On les ajoute à  l'adaptateur
-            for(File f : fichiers)
-                mAdapter.add(f);
-            // Puis on le trie
-            mAdapter.sort();
+            if (mCurrentFile.equals(rootFile)){
+                for (File f : fichiers) {
+                    if (f.getName().equals("BlindHelperConfig")  || f.getName().equals("BlindHelperDataCane") || f.getName().equals("BlindHelperDataTight") || f.getName().equals("BlindHelperDataCam")) {
+                        mAdapter.add(f);
+                    }
+                }
+            }
+            else {
+                // On les ajoute à  l'adaptateur
+                for (File f : fichiers)
+                    mAdapter.add(f);
+                // Puis on le trie
+                mAdapter.sort();
+            }
         }
     }
+
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        Intent returnMenu = null;
+        File rootFile = new File(Environment.getExternalStorageDirectory().getPath() + "/Android/data/");
+        // Si on a appuyé sur le retour arrière
+        if(keyCode == KeyEvent.KEYCODE_BACK) {
+            // On prend le parent du répertoire courant
+            File parent = mCurrentFile.getParentFile();
+            // S'il y a effectivement un parent
+            if(parent.equals(rootFile))
+                updateDirectory(parent);
+            else {
+                returnMenu = new Intent(FilesActivity.this,
+                        FirstActivity.class);
+                startActivity(returnMenu);
+            }
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
 
 
 }
