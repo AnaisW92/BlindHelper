@@ -1,35 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical" android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:gravity="center">
     <TextView
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:text="Blind Helper"
         android:textStyle="bold"
-        android:textColor="#000FFF"
+        android:textColor="#008DD2"
         android:textSize="40sp"
-        android:gravity="center" />
+        android:gravity="center"
+        android:layout_marginBottom="20dp"
+        />
 
     <Button
         android:id="@+id/IMU"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:text="IMU Tracking" />
+        style="@style/blueButton"
+        android:layout_width="300dp"
+        android:layout_gravity="center"
+        android:layout_height="50dp"
+        android:text="IMU Tracking"
+        android:textStyle="bold"
+        android:layout_marginBottom="20dp"/>
     <Button
         android:id="@+id/Camera"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:text="Camera" />
+        style="@style/blueButton"
+        android:layout_width="300dp"
+        android:layout_gravity="center"
+        android:layout_height="50dp"
+        android:text="Camera"
+        android:textStyle="bold"
+        android:layout_marginBottom="20dp"/>
     <Button
         android:id="@+id/Files"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:text="Files" />
+        style="@style/blueButton"
+        android:layout_width="300dp"
+        android:layout_height="50dp"
+        android:layout_gravity="center"
+        android:text="Files"
+        android:textStyle="bold"
+        android:layout_marginBottom="20dp"/>
     <Button
         android:id="@+id/Config"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
+
+        android:textStyle="bold"
+        style="@style/blueButton"
+        android:layout_width="300dp"
+        android:layout_height="50dp"
+
+        android:layout_gravity="center"
         android:text="Configuration" />
 
 
