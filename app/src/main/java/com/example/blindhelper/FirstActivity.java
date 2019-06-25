@@ -64,9 +64,9 @@ public class FirstActivity extends Activity {
         FileCam = new File(path);
 
         try{
-        FileCane.createNewFile();
-        FileTight.createNewFile();
-        FileCam.createNewFile();
+            FileCane.createNewFile();
+            FileTight.createNewFile();
+            FileCam.createNewFile();
         }
         catch(Exception e){
             e.printStackTrace();
@@ -77,8 +77,8 @@ public class FirstActivity extends Activity {
         Config.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-// Le premier paramètre est le nom de l'activité actuelle
-// Le second est le nom de l'activité de destination
+// Le premier paramÃ¨tre est le nom de l'activitÃ© actuelle
+// Le second est le nom de l'activitÃ© de destination
                 Intent secondeActivite = new Intent(FirstActivity.this,
                         ConfigActivity.class);
 
@@ -90,8 +90,8 @@ public class FirstActivity extends Activity {
         IMU.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-// Le premier paramètre est le nom de l'activité actuelle
-// Le second est le nom de l'activité de destination
+// Le premier paramÃ¨tre est le nom de l'activitÃ© actuelle
+// Le second est le nom de l'activitÃ© de destination
                 Intent secondeActivite = new Intent(FirstActivity.this,
                         DeviceControlActivity.class);
 

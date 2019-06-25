@@ -24,8 +24,10 @@
         </activity>
 
         <activity android:name=".ConfigActivity"/>
+        <activity android:name=".DeviceControlActivity"/>
         <activity android:name=".SearchActivity"/>
         <activity android:name=".PacketActivity"/>
+        <activity android:name=".TightConfigShowActivity"/>
         <activity android:name=".ConfigShowActivity"/>
         <activity android:name=".FilesActivity"/>
         <activity android:name=".FileOpenActivity"/>

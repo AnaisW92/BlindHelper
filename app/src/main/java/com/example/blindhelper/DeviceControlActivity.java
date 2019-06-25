@@ -96,29 +96,27 @@ public class DeviceControlActivity extends Activity {
             new ArrayList<ArrayList<BluetoothGattCharacteristic>>();
     private boolean mConnected = false;
     private BluetoothGattCharacteristic mNotifyCharacteristic;
-    //private EditText mFileName;
     private Button mStopButton;
     private Button mPacketFormatButton;
     private TextView mInstructions;
 
-        private final String LIST_NAME = "NAME";
-        private final String LIST_UUID = "UUID";
+    private final String LIST_NAME = "NAME";
+    private final String LIST_UUID = "UUID";
 
-        // Code to manage Service lifecycle.
-        private final ServiceConnection mServiceConnection = new ServiceConnection() {
-
-            @Override
-            public void onServiceConnected(ComponentName componentName, IBinder service) {
-                mBluetoothLeService = ((BluetoothLeService.LocalBinder) service).getService();
-                if (!mBluetoothLeService.initialize()) {
-                    Log.e(TAG, "Unable to initialize Bluetooth");
-                    finish();
-                }
-                // Automatically connects to the device upon successful start-up initialization.
-                mBluetoothLeService.connect(mDeviceAddress);
+    // Code to manage Service lifecycle.
+    private final ServiceConnection mServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder service) {
+            mBluetoothLeService = ((BluetoothLeService.LocalBinder) service).getService();
+            if (!mBluetoothLeService.initialize()) {
+                Log.e(TAG, "Unable to initialize Bluetooth");
+                finish();
             }
+            // Automatically connects to the device upon successful start-up initialization.
+            mBluetoothLeService.connect(mDeviceAddress);
+        }
 
-            @Override
+        @Override
         public void onServiceDisconnected(ComponentName componentName) {
             mBluetoothLeService = null;
         }

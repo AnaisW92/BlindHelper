@@ -296,7 +296,6 @@ public class BluetoothLeService extends Service {
         }
     }
 
-
     public class LocalBinder extends Binder {
         BluetoothLeService getService() {
             return BluetoothLeService.this;

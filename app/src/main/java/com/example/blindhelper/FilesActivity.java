@@ -164,15 +164,11 @@ public class FilesActivity extends ListActivity {
             if(parent.equals(rootFile))
                 updateDirectory(parent);
             else {
-                returnMenu = new Intent(FilesActivity.this,
-                        FirstActivity.class);
+                returnMenu = new Intent(FilesActivity.this,FirstActivity.class);
                 startActivity(returnMenu);
             }
             return true;
         }
         return super.onKeyDown(keyCode, event);
     }
-
-
-
 }

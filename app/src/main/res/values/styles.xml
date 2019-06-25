@@ -15,10 +15,4 @@
         <style name="blueButton">
             <item name="android:background">@drawable/bluebutton</item>
         </style>
-
-
-
-
-
-
 </resources>
