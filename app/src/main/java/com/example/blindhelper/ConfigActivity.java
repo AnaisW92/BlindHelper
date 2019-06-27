@@ -34,6 +34,19 @@ public class ConfigActivity extends Activity {
             }
         });
 
+        Tight.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+// Le premier paramètre est le nom de l'activité actuelle
+// Le second est le nom de l'activité de destination
+                Intent secondeActivite = new Intent(ConfigActivity.this,
+                        TightConfigShowActivity.class);
+
+// Puis on lance l'intent !
+                startActivity(secondeActivite);
+            }
+        });
+
         Return.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
