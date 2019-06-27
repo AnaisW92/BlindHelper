@@ -32,13 +32,16 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -82,8 +85,6 @@ public class DeviceControlActivity extends Activity {
 
     private final static String TAG = DeviceControlActivity.class.getSimpleName();
 
-    public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
-    public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
     private static final int REQUEST_WRITE_STORAGE = 3;
 
     private TextView mConnectionState;
@@ -96,29 +97,28 @@ public class DeviceControlActivity extends Activity {
             new ArrayList<ArrayList<BluetoothGattCharacteristic>>();
     private boolean mConnected = false;
     private BluetoothGattCharacteristic mNotifyCharacteristic;
-    //private EditText mFileName;
     private Button mStopButton;
     private Button mPacketFormatButton;
     private TextView mInstructions;
 
-        private final String LIST_NAME = "NAME";
-        private final String LIST_UUID = "UUID";
+    private final String LIST_NAME = "NAME";
+    private final String LIST_UUID = "UUID";
 
-        // Code to manage Service lifecycle.
-        private final ServiceConnection mServiceConnection = new ServiceConnection() {
 
-            @Override
-            public void onServiceConnected(ComponentName componentName, IBinder service) {
-                mBluetoothLeService = ((BluetoothLeService.LocalBinder) service).getService();
-                if (!mBluetoothLeService.initialize()) {
-                    Log.e(TAG, "Unable to initialize Bluetooth");
-                    finish();
-                }
-                // Automatically connects to the device upon successful start-up initialization.
-                mBluetoothLeService.connect(mDeviceAddress);
+    // Code to manage Service lifecycle.
+    private final ServiceConnection mServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder service) {
+            mBluetoothLeService = ((BluetoothLeService.LocalBinder) service).getService();
+            if (!mBluetoothLeService.initialize()) {
+                Log.e(TAG, "Unable to initialize Bluetooth");
+                finish();
             }
+            // Automatically connects to the device upon successful start-up initialization.
+            mBluetoothLeService.connect(mDeviceAddress);
+        }
 
-            @Override
+        @Override
         public void onServiceDisconnected(ComponentName componentName) {
             mBluetoothLeService = null;
         }
@@ -154,7 +154,7 @@ public class DeviceControlActivity extends Activity {
                 //mBluetoothLeService.requestMTU(); /*********************************************/
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
 
-                final byte[] data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA );
+                /*final byte[] data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA );
 
                 if (data != null) {
                     Log.v("FILE", "Received data length : " + data.length);
@@ -167,7 +167,7 @@ public class DeviceControlActivity extends Activity {
                         writeFile12800(data, TIME_BYTES);
                 } else Log.v("FILE", "data NULL");
 
-                // displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
+                // displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));*/
             }
         }
     };
@@ -177,7 +177,9 @@ public class DeviceControlActivity extends Activity {
         @Override
         public void onClick(View v) {
             // close data stream to file
-            stopRecording();
+            mBluetoothLeService.stopRecording();
+            //Intent gattServiceIntent = new Intent(DeviceControlActivity.this, BluetoothLeService.class);
+            //stopService(gattServiceIntent);
 
             // stops receiving notifications
             if (mNotifyCharacteristic != null) {
@@ -188,7 +190,7 @@ public class DeviceControlActivity extends Activity {
             // set UI
             setInitialUI();
             mInstructions.setText(R.string.instruction_click_service);
-            Toast.makeText(DeviceControlActivity.this,"Data saved to : " + mFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
+            Toast.makeText(DeviceControlActivity.this,"Data recorded", Toast.LENGTH_LONG).show();
         }
     };
 
@@ -220,7 +222,7 @@ public class DeviceControlActivity extends Activity {
                         }
 
                         // create file for saving data
-                        if (createDataFile() == null){
+                        if (mBluetoothLeService.createDataFile() == null){
                             Log.v("FILE", "Not created");
                             return true;
                         }
@@ -246,6 +248,7 @@ public class DeviceControlActivity extends Activity {
                             mBluetoothLeService.setCharacteristicNotification(
                                     characteristic, true);
                             // Log.w(TAG, "Characteristic support notify");
+
                         } else Log.w(TAG, "Characteristic does not support notify");
                         return true;
                     }
@@ -255,7 +258,7 @@ public class DeviceControlActivity extends Activity {
 
     private void clearUI() {
         mGattServicesList.setAdapter((SimpleExpandableListAdapter) null);
-        stopRecording();
+        mBluetoothLeService.stopRecording();
         setInitialUI();
     }
 
@@ -302,8 +305,6 @@ public class DeviceControlActivity extends Activity {
             alert11.show();
         }
 
-       // mDeviceName = "Cane";
-        //mDeviceAddress = "24:0A:C4:83:26:B2";
 
         // Sets up UI references.
         ((TextView) findViewById(R.id.device_address)).setText(mDeviceAddress);
@@ -313,7 +314,7 @@ public class DeviceControlActivity extends Activity {
         mDataField = (TextView) findViewById(R.id.data_value);
 
         mInstructions = (TextView) findViewById(R.id.instruction);
-        //mFileName = (EditText) findViewById(R.id.file_name);
+
         mStopButton = (Button) findViewById(R.id.stopButton);
         mStopButton.setOnClickListener(stopClickListener);
         mPacketFormatButton = (Button) findViewById(R.id.packetFormatButton);
@@ -324,15 +325,10 @@ public class DeviceControlActivity extends Activity {
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
         bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
 
-        // Request permissions to access external storage (necessary for data recording)
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_STORAGE);
-        } else {
-            registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
-            if (mBluetoothLeService != null) {
-                final boolean result = mBluetoothLeService.connect(mDeviceAddress);
-                Log.d(TAG, "Connect request result=" + result);
-            }
+        registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
+        if (mBluetoothLeService != null) {
+            final boolean result = mBluetoothLeService.connect(mDeviceAddress);
+            Log.d(TAG, "Connect request result=" + result);
         }
     }
 
@@ -361,6 +357,7 @@ public class DeviceControlActivity extends Activity {
     protected void onResume() {
         super.onResume();
 
+
         /* MOVED TO onRequestPermissionResult*/
         /***
          registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
@@ -374,6 +371,7 @@ public class DeviceControlActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        //Toast.makeText(DeviceControlActivity.this,"EN PAUSE",Toast.LENGTH_LONG).show();
         /*** MOVED TO onDestroy to avoid stopping recording when leaving the app
          unregisterReceiver(mGattUpdateReceiver);*/
     }
@@ -515,127 +513,11 @@ public class DeviceControlActivity extends Activity {
 
     // return the path to the file created
     // return null if no file name was provided or if the file cannot be created
-    public String createDataFile(){
-        String path = null;
-        //String file_name = mFileName.getText().toString();
 
-        String file_name = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
-        file_name = "cane_" + file_name;
 
-        /*if(TextUtils.isEmpty(file_name)) {
-            mFileName.setError("Required");
-            return null;
-        }*/
-
-        // If there is external and writable storage
-        if(Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()) && !Environment.MEDIA_MOUNTED_READ_ONLY.equals(Environment.getExternalStorageState())) {
-            try {
-                path = Environment.getExternalStorageDirectory().getPath() + "/Android/data/BlindHelperDataCane/" + file_name + ".txt";
-                mFile = new File(path);
-
-                mFile.createNewFile(); // create new file if it does not already exists
-
-                output = new FileOutputStream(mFile);
-                Log.v("FILE", "File created");
-                path = mFile.getPath();
-                mDataField.setText("Saving to : " + path);
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        } else {
-            Toast.makeText(DeviceControlActivity.this, R.string.error_no_ext_storage, Toast.LENGTH_LONG).show();
-        }
-        return path;
-    }
-
-    public void writeFile(StringBuilder stringData){
-        try {
-            //Log.v("FILE", stringData.toString());
-            if (output != null)
-                output.write(stringData.toString().getBytes());
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void writeFile10000(byte[] data, int seqNbrBytes, int sampleTime, int sampleBytes){
-        final StringBuilder stringData = new StringBuilder(data.length-seqNbrBytes + (data.length-seqNbrBytes)/2 + (seqNbrBytes+2)*sampleBytes); // memory for data, for comas, for time
-        int storeData[] = new int[(data.length - seqNbrBytes)/2]; // to store integers (2 bytes)
-        //float seqNbr =(float) ( ((data[0] & 0xFF) << 16) + ((data[1] & 0xFF) << 8) + (data[2] & 0xFF) );
-        long seqNbr =(long) ( (((data[data.length-1] & 0xF0L)) << 12) + ((data[data.length-2] & 0xFFL) << 8) + (data[data.length-3] & 0xFFL) );
-
-        int count = 0;
-
-        //seqNbr = seqNbr - 1/(float)mSAMPLES_PER_PACKET;
-        seqNbr = seqNbr - sampleTime;
-
-        for(int i = 0; i < (data.length - seqNbrBytes); i += 2) {
-            // Store unsigned int
-            //storeData[i/2] = ( (data[i]& 0XFF) << 8 ) + ( data[i + 1] & 0xFF );
-            storeData[i/2] = ( (data[i+1]& 0XFF) << 8 ) + ( data[i] & 0xFF );
-            /*storeData[i/2] = ( (data[i+mHEADER_BYTES]& 0XFF) << 8 ) + ( data[i+mHEADER_BYTES + 1] & 0xFF );*/
-
-            // Convert unsigned to signed
-            if ((storeData[i/2] & (1 << 15)) != 0) { // 15 because we receive 16-bits signed integers
-                storeData[i/2] = -1 * ((1 << 15) - (storeData[i/2] & ((1 << 15) - 1)));
-            }
-            stringData.append(storeData[i/2]);
-            count++;
-
-            // Add a coma or a new line
-            if ( count%(sampleBytes/2) == 0 ){
-                //seqNbr += 1/(float)mSAMPLES_PER_PACKET;
-                seqNbr += sampleTime;
-                stringData.append(',');
-                stringData.append(seqNbr);
-                stringData.append("\n");
-            } else stringData.append(',');
-        }
-
-        writeFile(stringData);
-    }
-
-    public void writeFile12800(byte[] data, int timeBytes){
-        if (data.length == 16) {
-            final StringBuilder stringData = new StringBuilder(data.length + (data.length) / 2); // memory for data, for comas, for time
-            int storeData[] = new int[(data.length) / 2]; // to store integers (2 bytes)
-            long seqNbr = (long) ((((data[data.length - 1] & 0xFFL)) << 24) + ((data[data.length - 2] & 0xFFL) << 16) + ((data[data.length - 3] & 0xFFL) << 8) + (data[data.length - 4] & 0xFFL));
-
-            for (int i = 0; i < (data.length - timeBytes); i += 2) {
-                // Store unsigned int
-                storeData[i / 2] = ((data[i + 1] & 0XFF) << 8) + (data[i] & 0xFF);
-
-                // Convert unsigned to signed
-                if ((storeData[i / 2] & (1 << 15)) != 0) { // 15 because we receive 16-bits signed integers
-                    storeData[i / 2] = -1 * ((1 << 15) - (storeData[i / 2] & ((1 << 15) - 1)));
-                }
-
-                stringData.append(storeData[i / 2]);
-                stringData.append(',');
-            }
-            stringData.append(seqNbr);
-            stringData.append("\n");
-
-            writeFile(stringData);
-        }
-    }
-
-    public void stopRecording(){
-        try {
-            if (output != null)
-                output.close();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        output = null;
-    }
 
     public void setInitialUI(){
-       // mFileName.setText("");
+        // mFileName.setText("");
         mDataField.setText(R.string.no_data);
         mPacketFormatButton.setEnabled(true);
         //mFileName.setEnabled(true);
@@ -680,5 +562,23 @@ public class DeviceControlActivity extends Activity {
         alertDialog.show();
     }
 
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // Si on a appuyé sur le retour arrière
+        if(keyCode == KeyEvent.KEYCODE_BACK) {
+            Intent secondeActivite = new Intent(DeviceControlActivity.this,
+                    FirstActivity.class);
+            startActivity(secondeActivite);
+
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public void onBackPressed(){
+        Intent secondeActivite = new Intent(DeviceControlActivity.this,
+                FirstActivity.class);
+        startActivity(secondeActivite);
+    }
 
 }

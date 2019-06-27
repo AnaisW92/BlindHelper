@@ -8,6 +8,7 @@
     <string name="connected">Connected</string>
     <string name="disconnected">Disconnected</string>
     <string name="error_bluetooth_not_supported">Bluetooth not supported.</string>
+    <string name="error_permission_denied">You can\'t use the app without that permission, you will be disconnected</string>
     <string name="label_file_name">File name:</string>
     <string name="packet_format">Packet format</string>
     <string name="stop">Stop recording</string>

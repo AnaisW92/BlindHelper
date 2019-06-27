@@ -27,18 +27,35 @@ import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.Build;
+import android.os.Environment;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.util.Log;
+import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.List;
 import java.util.UUID;
 
 import static com.example.blindhelper.PacketFormat.DATA_BYTES;
 import static com.example.blindhelper.PacketFormat.DELIMITER1;
 import static com.example.blindhelper.PacketFormat.DELIMITER2;
+import static com.example.blindhelper.PacketFormat.SAMPLE_BYTES;
+import static com.example.blindhelper.PacketFormat.SAMPLE_TIME;
+import static com.example.blindhelper.PacketFormat.SEQNBR_BYTES;
+import static com.example.blindhelper.PacketFormat.TIME_BYTES;
 
 /**
  * Service for managing connection and data communication with a GATT server hosted on a
@@ -63,6 +80,9 @@ public class BluetoothLeService extends Service {
     private String mBluetoothDeviceAddress;
     private BluetoothGatt mBluetoothGatt;
     private int mConnectionState = STATE_DISCONNECTED;
+    private File caneFile = null;
+    private FileOutputStream output=null;
+
 
     private static final int STATE_DISCONNECTED = 0;
     private static final int STATE_CONNECTING = 1;
@@ -143,8 +163,16 @@ public class BluetoothLeService extends Service {
                                             BluetoothGattCharacteristic characteristic) {
             //Log.w(TAG, "ON CHANGED");
             broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
+
         }
     };
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        super.onStartCommand(intent, flags, startId);
+//
+        return START_STICKY;
+    }
 
     // for ACTION_GATT_SERVICE_DISCOVERED, ACTION_GATT_CONNECTED, ACTION_GATT_DISCONNECTED
     private void broadcastUpdate(final String action) {
@@ -159,19 +187,29 @@ public class BluetoothLeService extends Service {
         final byte[] data = characteristic.getValue();
         Log.v("AndroidLE", "data.Length: " + data.length);
 
+
         if (data != null && data.length > 0) {
 
-            if(PacketActivity.button_10000.isChecked()){
+            if (PacketActivity.button_10000.isChecked()) {
                 for (int i = 0; i < data.length; i++) {
                     // check if we reached the delimiter and the data is complete
                     //if ( data[i] == mDELIMITER ) {
-                    if ( ((data[i] & 0xFF) == DELIMITER1) && (i!=0) && ( (data[i-1] & 0x0F) == DELIMITER2 ) ) {
+                    if (((data[i] & 0xFF) == DELIMITER1) && (i != 0) && ((data[i - 1] & 0x0F) == DELIMITER2)) {
                         //Log.v("DATA", "Delimiter found");
                         if (mBytesArrayIndex == DATA_BYTES - 1) {
                             // broadcast data
                             //mSequenceNumber = ((mStoreBytes[0] & 0xFF) << 16) + ((mStoreBytes[1] & 0xFF) << 8) + (mStoreBytes[2] & 0xFF);
-                            intent.putExtra(EXTRA_DATA, mStoreBytes);
-                            sendBroadcast(intent);
+                            //intent.putExtra(EXTRA_DATA, mStoreBytes);
+                            //sendBroadcast(intent);
+                            final byte[] newData = mStoreBytes;
+                            if (newData != null) {
+                                //Log.v("FILE", "Received data length : " + data.length);
+                                // Convert the received Byte array to a meaningful Integer array, and store it in file.
+                                // Format :
+                                // ax,ay,az,gx,gy,gz,time
+                                writeFile10000(data, SEQNBR_BYTES, SAMPLE_TIME, SAMPLE_BYTES);
+
+                            } else Log.v("FILE", "data NULL");
 
                             // display data
              /*final StringBuilder stringData = new StringBuilder(mStoreBytes.length + mStoreBytes.length/2); // memory for data and for comas
@@ -198,6 +236,7 @@ public class BluetoothLeService extends Service {
                         if (mBytesArrayIndex <= DATA_BYTES - 2) { // index starts from 0 and we don't store the delimiter
                             mStoreBytes[mBytesArrayIndex] = data[i];
                             mBytesArrayIndex++;
+
                             //Log.v("DATA", "OK");
                         } else {
                             Log.v("DATA", "Ambiguous : data complete but delimiter not found");
@@ -206,94 +245,22 @@ public class BluetoothLeService extends Service {
                         }
                     }
                 }
-            }
-
-
-            else if (PacketActivity.button_12800.isChecked()) {
+            } else if (PacketActivity.button_12800.isChecked()) {
                 if (data.length == 16) {
-                    intent.putExtra(EXTRA_DATA, data);
-                    sendBroadcast(intent);
+                    //intent.putExtra(EXTRA_DATA, data);
+                    //sendBroadcast(intent);
+                    final byte[] newData = data;
+                    if (newData != null) {
+                        //Log.v("FILE", "Received data length : " + data.length);
+                        // Convert the received Byte array to a meaningful Integer array, and store it in file.
+                        // Format :
+                        // ax,ay,az,gx,gy,gz,time
+                        writeFile12800(data, TIME_BYTES);
+                    } else Log.v("FILE", "data NULL");
                 }
             }
-
-
-            // Test for first byte
-            /*
-            if(store != -1){
-                if ((data[0] != store + 1) && (store != 127)) {
-                    counter++;
-                    Log.v(TAG, "erreurs : " + counter);
-                }
-            }
-            store = data[0];
-
-            total ++;
-            losses = ((float) counter/ (float) total) * (float) 100;
-            Log.v(TAG, String.valueOf(losses));*/
-
-
-
-
-
-            // To store the incoming bytes in an array of integers and in a string
-             /*       final StringBuilder stringData = new StringBuilder(data.length + data.length/2); // memory for data and for comas
-                    int storeData[] = new int[ (mDATA_BYTES -1)/2 ]; // to store integers (2 bytes)
-            for(int i = 0; i < data.length; i += 2) {
-                storeData[i / 2] = (data[i] << 8) + data[i + 1];
-                stringData.append(storeData[i / 2]);
-                stringData.append(',');
-                //if ((i != 0) && (storeData[i / 2] != storeData[i/2 - 1] + 1))
-                 //   Log.v("AndroidLE", "ERRRRRRRRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEUUUUUUUUUUUUUUURRRRRRRRRRRRRR");
-            }
-            Log.v("AndroidLE", stringData.toString());*/
-
-            // Test for 6 integers
-           /*int nbr1 = (data[0] << 8) + data[1];
-           if (data.length > 12) {
-               int nbr2 = (data[12] << 8) + data[13];
-               if (nbr1 != (nbr2 -1)){
-                   Log.v("AndroidLE", "ERROR !!!");
-               }
-           } else Log.v("AndroidLE", "DATA LENGTH <= 12 !!!");*/
-
-            // Test for bytes
-            /*final StringBuilder stringData = new StringBuilder(data.length * 2);
-            for (int i = 0; i < data.length - 1; i++) {
-                stringData.append(data[i]);
-                stringData.append(',');
-                if ((data[i] != data[i + 1] - 1) && (data[i] != 127)) {
-                    Log.v("AndroidLE", "ERROR !!!");
-                    //Log.v("AndroidLE", stringData.toString());
-                }
-            }Log.v("AndroidLE", stringData.toString());
-
-            intent.putExtra(EXTRA_DATA, stringData + "\n");*/
-
-            /*final StringBuilder stringBuilder = new StringBuilder(data.length);
-            // to ameliorate (bad for memory to allocate a new space each time)
-            for (byte byteChar : data) {
-                stringBuilder.append(String.format("%02X ", byteChar));
-                //Log.v("AndroidLE", String.format("%02X ", byteChar));
-            }
-            intent.putExtra(EXTRA_DATA, new String(data) + "\n" + stringBuilder.toString());*/
-
-            //intent.putExtra(EXTRA_DATA, data);
-
-
-
-            //sendBroadcast(intent);
         }
 
-        //sendBroadcast(intent);
-        /***********************************************************************/
-    }
-
-    public void requestMTU() {
-        //gatt is a BluetoothGatt instance and MAX_MTU is 512
-        if (Build.VERSION.SDK_INT >= 21) {
-            mBluetoothGatt.requestMtu(MTU_SIZE);
-            Log.w(TAG, "MTU REQUESTED");
-        }
     }
 
 
@@ -428,6 +395,18 @@ public class BluetoothLeService extends Service {
         Log.w(TAG, "READ");
     }
 
+    void showToast() {
+
+        Handler handler = new Handler(Looper.getMainLooper());
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(BluetoothLeService.this, "Toast Message", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+
     /**
      * Enables or disables notification on a give characteristic.
      *
@@ -444,6 +423,8 @@ public class BluetoothLeService extends Service {
         Log.w(TAG, "NOTIF ENABLED : " + String.valueOf(enabled));
         Log.v(TAG, characteristic.getUuid().toString()); //beb...
 
+
+
         // This is specific to the remote device you are using.
         if (UUID_HM_13.equals(characteristic.getUuid())) {
             BluetoothGattDescriptor descriptor = characteristic.getDescriptor(
@@ -456,6 +437,128 @@ public class BluetoothLeService extends Service {
 /***********************************************************************************************************/
 
     }
+
+    public void writeFile(StringBuilder stringData){
+        try {
+            //Log.v("FILE", stringData.toString());
+            if (output != null)
+                output.write(stringData.toString().getBytes());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void writeFile10000(byte[] data, int seqNbrBytes, int sampleTime, int sampleBytes){
+        final StringBuilder stringData = new StringBuilder(data.length-seqNbrBytes + (data.length-seqNbrBytes)/2 + (seqNbrBytes+2)*sampleBytes); // memory for data, for comas, for time
+        int storeData[] = new int[(data.length - seqNbrBytes)/2]; // to store integers (2 bytes)
+        //float seqNbr =(float) ( ((data[0] & 0xFF) << 16) + ((data[1] & 0xFF) << 8) + (data[2] & 0xFF) );
+        long seqNbr =(long) ( (((data[data.length-1] & 0xF0L)) << 12) + ((data[data.length-2] & 0xFFL) << 8) + (data[data.length-3] & 0xFFL) );
+
+        int count = 0;
+
+        //seqNbr = seqNbr - 1/(float)mSAMPLES_PER_PACKET;
+        seqNbr = seqNbr - sampleTime;
+
+        for(int i = 0; i < (data.length - seqNbrBytes); i += 2) {
+            // Store unsigned int
+            //storeData[i/2] = ( (data[i]& 0XFF) << 8 ) + ( data[i + 1] & 0xFF );
+            storeData[i/2] = ( (data[i+1]& 0XFF) << 8 ) + ( data[i] & 0xFF );
+            /*storeData[i/2] = ( (data[i+mHEADER_BYTES]& 0XFF) << 8 ) + ( data[i+mHEADER_BYTES + 1] & 0xFF );*/
+
+            // Convert unsigned to signed
+            if ((storeData[i/2] & (1 << 15)) != 0) { // 15 because we receive 16-bits signed integers
+                storeData[i/2] = -1 * ((1 << 15) - (storeData[i/2] & ((1 << 15) - 1)));
+            }
+            stringData.append(storeData[i/2]);
+            count++;
+
+            // Add a coma or a new line
+            if ( count%(sampleBytes/2) == 0 ){
+                //seqNbr += 1/(float)mSAMPLES_PER_PACKET;
+                seqNbr += sampleTime;
+                stringData.append(',');
+                stringData.append(seqNbr);
+                stringData.append("\n");
+            } else stringData.append(',');
+        }
+
+        writeFile(stringData);
+    }
+
+    public void writeFile12800(byte[] data, int timeBytes){
+        if (data.length == 16) {
+            final StringBuilder stringData = new StringBuilder(data.length + (data.length) / 2); // memory for data, for comas, for time
+            int storeData[] = new int[(data.length) / 2]; // to store integers (2 bytes)
+            long seqNbr = (long) ((((data[data.length - 1] & 0xFFL)) << 24) + ((data[data.length - 2] & 0xFFL) << 16) + ((data[data.length - 3] & 0xFFL) << 8) + (data[data.length - 4] & 0xFFL));
+
+            for (int i = 0; i < (data.length - timeBytes); i += 2) {
+                // Store unsigned int
+                storeData[i / 2] = ((data[i + 1] & 0XFF) << 8) + (data[i] & 0xFF);
+
+                // Convert unsigned to signed
+                if ((storeData[i / 2] & (1 << 15)) != 0) { // 15 because we receive 16-bits signed integers
+                    storeData[i / 2] = -1 * ((1 << 15) - (storeData[i / 2] & ((1 << 15) - 1)));
+                }
+
+                stringData.append(storeData[i / 2]);
+                stringData.append(',');
+            }
+            stringData.append(seqNbr);
+            stringData.append("\n");
+
+            writeFile(stringData);
+        }
+    }
+
+    public void stopRecording(){
+        try {
+            if (output != null)
+                output.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        output = null;
+    }
+
+    public String createDataFile(){
+        String path = null;
+        //String file_name = mFileName.getText().toString();
+
+        String file_name = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
+        file_name = "cane_" + file_name;
+
+        /*if(TextUtils.isEmpty(file_name)) {
+            mFileName.setError("Required");
+            return null;
+        }*/
+
+        // If there is external and writable storage
+        if(Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()) && !Environment.MEDIA_MOUNTED_READ_ONLY.equals(Environment.getExternalStorageState())) {
+            try {
+                path = Environment.getExternalStorageDirectory().getPath() + "/Android/data/BlindHelperDataCane/" + file_name + ".txt";
+                caneFile = new File(path);
+
+                caneFile.createNewFile(); // create new file if it does not already exists
+
+                output = new FileOutputStream(caneFile);
+                Log.v("FILE", "File created");
+                //path = caneFile.getPath();
+                //DeviceControlActivity.mDataField.setText("Saving to : " + path);
+
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            //Toast.makeText(BluetoothLeService.this, R.string.error_no_ext_storage, Toast.LENGTH_LONG).show();
+        }
+        return path;
+    }
+
+
 
     /**
      * Retrieves a list of supported GATT services on the connected device. This should be

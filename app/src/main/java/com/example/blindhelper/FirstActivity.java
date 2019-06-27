@@ -1,16 +1,27 @@
 package com.example.blindhelper;
 
+import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.util.Log;
 import android.widget.Button;
 import android.view.View;
 import android.widget.Toast;
 
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 import java.io.File;
 import java.io.FileOutputStream;
+
+import static android.content.ContentValues.TAG;
 
 
 public class FirstActivity extends Activity {
@@ -18,10 +29,11 @@ public class FirstActivity extends Activity {
     private Button IMU = null;
     private Button Camera = null;
     private Button Files = null;
-    private File FileDir = null;
     private File FileCane = null;
     private File FileTight = null;
     private File FileCam = null;
+    private static final int REQUEST_WRITE_STORAGE = 3;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -30,6 +42,10 @@ public class FirstActivity extends Activity {
         IMU = (Button) findViewById(R.id.IMU);
         Camera = (Button) findViewById(R.id.Camera);
         Files = (Button) findViewById(R.id.Files);
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_STORAGE);
+        }
 
         String path = null;
         File FileDir = null;
@@ -92,11 +108,9 @@ public class FirstActivity extends Activity {
             public void onClick(View v) {
 // Le premier paramètre est le nom de l'activité actuelle
 // Le second est le nom de l'activité de destination
-                Intent secondeActivite = new Intent(FirstActivity.this,
-                        DeviceControlActivity.class);
-
-// Puis on lance l'intent !
-                startActivity(secondeActivite);
+                Intent openIMUActivity= new Intent(FirstActivity.this, DeviceControlActivity.class);
+                openIMUActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                startActivityIfNeeded(openIMUActivity, 0);
             }
         });
 
@@ -110,6 +124,35 @@ public class FirstActivity extends Activity {
             }
         });
 
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case REQUEST_WRITE_STORAGE: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_DENIED) {
+                    AlertDialog.Builder builder1 = new AlertDialog.Builder(this);
+                    builder1.setMessage(R.string.error_permission_denied);
+
+                    AlertDialog alert11 = builder1.create();
+                    alert11.show();
+
+                    Handler handler = new Handler();
+                    handler.postDelayed(new Runnable() {
+
+                        @Override
+                        public void run() {
+                            finish();
+                        }
+
+                    }, 4000); // 5000ms delay
+
+
+                }
+                return;
+            }
+        }
     }
 
 }
