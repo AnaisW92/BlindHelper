@@ -2,16 +2,23 @@
     <string name="app_name">BlindHelper</string>
     <string name="ble_not_supported">BLE is not supported</string>
     <string name="label_data">Data:</string>
-    <string name="label_device_address">Device address:</string>
+    <string name="label_cane_device_address">Cane sensor address:</string>
+    <string name="label_cane_device_state">Cane sensor state:</string>
+    <string name="label_tight_device_address">Tight sensor address:</string>
+    <string name="label_tight_device_state">Tight sensor state:</string>
     <string name="label_state">State:</string>
     <string name="no_data">No data</string>
     <string name="connected">Connected</string>
+    <string name="connecting">Connecting...</string>
     <string name="disconnected">Disconnected</string>
+    <string name="disconnection_cane">Cane sensor has been disconnected</string>
+    <string name="disconnection_tight">Tight sensor has been disconnected</string>
     <string name="error_bluetooth_not_supported">Bluetooth not supported.</string>
     <string name="error_permission_denied">You can\'t use the app without that permission, you will be disconnected</string>
     <string name="label_file_name">File name:</string>
     <string name="packet_format">Packet format</string>
     <string name="stop">Stop recording</string>
+    <string name="start">Start recording</string>
     <string name="file_example">ex: Test1</string>
     <string name="error_no_ext_storage">Sorry, there is no external storage on your device or it is not writable, data cannot be saved</string>
     <string name="instruction_click_service">Click on a service and a characteristic to start recording data</string>
@@ -30,7 +37,9 @@
     <string name="cane_file">CaneSensorSaved</string>
     <string name="tight_file">TightSensorSaved.txt</string>
     <string name="camera_file">CameraSaved.txt</string>
-    <string name="err_config_file">Please configure the cane sensor</string>
+    <string name="err_config_cane">Please configure the cane sensor</string>
+    <string name="err_config_tight">Please configure the tight sensor</string>
+    <string name="test">Here</string>
 
     <!-- Menu items -->
     <string name="menu_connect">Connect</string>

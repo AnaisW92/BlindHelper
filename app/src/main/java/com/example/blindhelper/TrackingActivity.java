@@ -1,82 +1,277 @@
+/*
+ * Copyright (C) 2013 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.example.blindhelper;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattService;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Looper;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import android.text.TextUtils;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ExpandableListView;
 import android.widget.SimpleExpandableListAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AlertDialog;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-import static android.content.ContentValues.TAG;
 
+/**
+ * For a given BLE device, this Activity provides the user interface to connect, display data,
+ * and display GATT services and characteristics supported by the device.  The Activity
+ * communicates with {@code BluetoothLeService}, which in turn interacts with the
+ * Bluetooth LE API.
+ */
 public class TrackingActivity extends Activity {
-    private String mDeviceName = null;
-    private String mDeviceAddress = null;
-    private final static String TAG = DeviceControlActivity.class.getSimpleName();
+    private final static String TAG = TrackingActivity.class.getSimpleName();
+    public static String HM_13 = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
-    private static final int REQUEST_WRITE_STORAGE = 3;
+    private TextView mConnectionStateCane;
+    private TextView mConnectionStateTight;
+    private boolean mConnectedCane = false;
+    private boolean mConnectedTight = false;
+    private boolean mServiceCane = false;
+    private boolean mServiceTight = false;
 
-    private TextView mConnectionState;
-    private TextView mDataField;
-    private ExpandableListView mGattServicesList;
-    private ArrayList<ArrayList<BluetoothGattCharacteristic>> mGattCharacteristics =
-            new ArrayList<ArrayList<BluetoothGattCharacteristic>>();
-    private boolean mConnected = false;
-    private BluetoothGattCharacteristic mNotifyCharacteristic;
+    private Map<String, String> mSensorsMap;
+    private RecordingService mRecordingService;
+    private BluetoothGattCharacteristic mNotifyCharacteristicCane;
+    private BluetoothGattCharacteristic mNotifyCharacteristicTight;
+    private Button mStartButton;
     private Button mStopButton;
-    private Button mPacketFormatButton;
     private TextView mInstructions;
 
-    private final String LIST_NAME = "NAME";
-    private final String LIST_UUID = "UUID";
+    public final static String CANE = "cane";
+    public final static String TIGHT = "tight";
+    private String PATH_CONFIG_CANE = Environment.getExternalStorageDirectory().getPath() + "/Android/data/BlindHelperConfig/" + "CaneSensor.txt";
+    private String PATH_CONFIG_TIGHT = Environment.getExternalStorageDirectory().getPath() + "/Android/data/BlindHelperConfig/" + "TightSensor.txt" ;
+
+
+    // Code to manage Service lifecycle.
+    private final ServiceConnection mServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder service) {
+            mRecordingService = ((RecordingService.LocalBinder) service).getService();
+            if (!mRecordingService.initialize(mSensorsMap)) {
+                Log.e(TAG, "Unable to initialize Bluetooth");
+                finish();
+            }
+            // Automatically connects to the device upon successful start-up initialization.
+            if(!mRecordingService.connect(mSensorsMap.get(CANE))){
+
+            }
+            mRecordingService.connect(mSensorsMap.get(TIGHT));
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            mRecordingService = null;
+        }
+    };
+
+
+    // Handles various events fired by the Service.
+    // ACTION_GATT_CONNECTED: connected to a GATT server.
+    // ACTION_GATT_DISCONNECTED: disconnected from a GATT server.
+    // ACTION_GATT_SERVICES_DISCOVERED: discovered GATT services.
+    // ACTION_DATA_AVAILABLE: received data from the device.  This can be a result of read
+    //                        or notification operations.
+    private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+            String sensor = intent.getStringExtra(RecordingService.EXTRA_DATA);
+            if (RecordingService.ACTION_GATT_CONNECTED.equals(action)) {
+                if (sensor.equals(CANE)){
+                    mConnectedCane = true;
+                }
+                else{
+                    mConnectedTight = true;
+                }
+                updateConnectionState(R.string.connected,sensor);
+                if (mConnectedCane &&mConnectedTight) {
+                    updateInstructionState(R.string.instruction_wait_service);
+                    invalidateOptionsMenu();
+                }
+            } else if (RecordingService.ACTION_GATT_DISCONNECTED.equals(action)) {
+                if (sensor.equals(CANE)){
+                    mConnectedCane = false;
+                }
+                else{
+                    mConnectedTight = false;
+                }
+                updateConnectionState(R.string.disconnected,sensor);
+                invalidateOptionsMenu();
+                warningDeconnection(sensor);
+                if(!(mConnectedCane||mConnectedTight)) {
+                    updateInstructionState(R.string.instruction_click_connect);
+                    clearUI();
+                }
+            } else if (RecordingService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
+                // Show all the supported services and characteristics on the user interface.
+                String address = mSensorsMap.get(sensor);
+                ArrayList<ArrayList<BluetoothGattCharacteristic>> gattCharas =
+                        getGattServices(mRecordingService.getSupportedGattServices(address));
+                BluetoothGattCharacteristic mCharacterictic = null;
+                if(gattCharas!=null) {
+                    for (ArrayList<BluetoothGattCharacteristic> arrayChara : gattCharas) {
+                        for (BluetoothGattCharacteristic chara : arrayChara) {
+                            if(chara!=null) {
+                                if (chara.getUuid().toString().equals(HM_13)) {
+                                    mCharacterictic = chara;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (mCharacterictic==null){
+                    Toast.makeText(TrackingActivity.this,"No interesting service found",Toast.LENGTH_LONG).show();
+                }
+                else{
+                    if(sensor.equals(CANE)){
+                        mServiceCane=true;
+                        mNotifyCharacteristicCane=mCharacterictic;
+                    }
+                    else{
+                        mServiceTight = true;
+                        mNotifyCharacteristicTight = mCharacterictic;
+                    }
+                    if (mServiceCane&&mServiceTight){
+                        mStartButton.setEnabled(true);
+                        updateInstructionState(R.string.instruction_click_service);
+                    }
+                }
+            }
+        }
+    };
+
+    // Stops recording received data into a file, but keeps connection and notifications open.
+    private View.OnClickListener stopClickListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            // close data stream to file
+            mRecordingService.stopRecording();
+
+            // stops receiving notifications
+            if (mNotifyCharacteristicCane != null) {
+                mRecordingService.setCharacteristicNotification(mNotifyCharacteristicCane, false, mSensorsMap.get(CANE));
+            }
+            if (mNotifyCharacteristicTight != null) {
+                mRecordingService.setCharacteristicNotification(mNotifyCharacteristicTight, false, mSensorsMap.get(TIGHT));
+            }
+            // set UI
+            setPostRecordingUI();
+            Toast.makeText(TrackingActivity.this,"Data recorded", Toast.LENGTH_LONG).show();
+        }
+    };
+
+    // Start recording
+    private View.OnClickListener startClickListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            // create file for saving data
+            if (!mRecordingService.createDataFile()){
+                Log.v("FILE", "Not created");
+                Toast.makeText(TrackingActivity.this,"File not created",Toast.LENGTH_LONG).show();
+            }
+            // set UI
+            setRecordingUI();
+
+            // set Notification
+            mRecordingService.setCharacteristicNotification(
+                    mNotifyCharacteristicCane, true, mSensorsMap.get(CANE));
+            mRecordingService.setCharacteristicNotification(
+                    mNotifyCharacteristicTight, true, mSensorsMap.get(TIGHT));
+
+        }
+    };
+
+
+    private void clearUI() {
+        mRecordingService.stopRecording();
+        setInitialUI();
+    }
+
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.gatt_services_characteristics);
+        setContentView(R.layout.tracking);
+        mSensorsMap = new HashMap<String,String>();
+        FileInputStream input = null;
+        File mFile = null;
 
         // We get the name and address saved in the file after configuration
-        try {
-            FileInputStream input = null;
-            File mFile = new File(Environment.getExternalStorageDirectory().getPath() + "/Android/data/BlindHelperConfig/" + "CaneSensor.txt");
+        try { //for the cane sensor
+            mFile = new File(PATH_CONFIG_CANE);
             input = new FileInputStream(mFile);
             BufferedReader br = new BufferedReader(new InputStreamReader(input));
-
-            mDeviceName = br.readLine();
-            mDeviceAddress = br.readLine();
+            br.readLine();
+            mSensorsMap.put(CANE,br.readLine());
             br.close();
             input.close();
         } catch(Exception e){
             e.printStackTrace();
             //Check if the configuration has been done
-            AlertDialog.Builder builder1 = new AlertDialog.Builder(this);
-            builder1.setMessage(R.string.err_config_file);
-            builder1.setCancelable(true);
+            AlertDialog.Builder buildCane = new AlertDialog.Builder(this);
+            buildCane.setMessage(R.string.err_config_cane);
+            buildCane.setCancelable(true);
 
-            builder1.setPositiveButton(
+            buildCane.setPositiveButton(
                     "Back",
                     new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int id) {
@@ -85,210 +280,86 @@ public class TrackingActivity extends Activity {
                             startActivity(home);
                         }
                     });
+            AlertDialog alertCane = buildCane.create();
+            alertCane.show();
+        }
+        try { //for the tight sensor
+            mFile = new File(PATH_CONFIG_TIGHT);
+            input = new FileInputStream(mFile);
+            BufferedReader br = new BufferedReader(new InputStreamReader(input));
+            br.readLine();
+            mSensorsMap.put(TIGHT,br.readLine());
+            br.close();
+            input.close();
+        } catch(Exception e){
+            e.printStackTrace();
+            //Check if the configuration has been done
+            AlertDialog.Builder buildTight = new AlertDialog.Builder(this);
+            buildTight.setMessage(R.string.err_config_cane);
+            buildTight.setCancelable(true);
 
-            AlertDialog alert11 = builder1.create();
-            alert11.show();
+            buildTight.setPositiveButton(
+                    "Back",
+                    new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int id) {
+                            dialog.cancel();
+                            Intent home = new Intent(TrackingActivity.this, FirstActivity.class);
+                            startActivity(home);
+                        }
+                    });
+            AlertDialog alertTight = buildTight.create();
+            alertTight.show();
         }
 
-
         // Sets up UI references.
-        ((TextView) findViewById(R.id.device_address)).setText(mDeviceAddress);
-        mGattServicesList = (ExpandableListView) findViewById(R.id.gatt_services_list);
-        mGattServicesList.setOnChildClickListener(servicesListClickListner);
-        mConnectionState = (TextView) findViewById(R.id.connection_state);
-        mDataField = (TextView) findViewById(R.id.data_value);
+        mConnectionStateCane = (TextView) findViewById(R.id.cane_device_state);
+        mConnectionStateTight = (TextView) findViewById(R.id.tight_device_state);
 
         mInstructions = (TextView) findViewById(R.id.instruction);
 
         mStopButton = (Button) findViewById(R.id.stopButton);
         mStopButton.setOnClickListener(stopClickListener);
-        mPacketFormatButton = (Button) findViewById(R.id.packetFormatButton);
-        mPacketFormatButton.setOnClickListener(packetClickListener);
+        mStartButton = (Button) findViewById(R.id.playButton);
+        mStartButton.setOnClickListener(startClickListener);
 
-        getActionBar().setTitle(mDeviceName);
+        getActionBar().setTitle("IMU record");
         getActionBar().setDisplayHomeAsUpEnabled(true);
+        Intent gattServiceIntent = new Intent(this, RecordingService.class);
+        bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
 
-
-        // Request permissions to access external storage (necessary for data recording)
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_STORAGE);
-        } else {
-            registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
-            Intent firstIntent = new Intent();
-            firstIntent.putExtra("order","connect");
-            firstIntent.putExtra("address",mDeviceAddress);
-            startService(firstIntent);
-
+        registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
+        if (mRecordingService != null) {
+            final boolean resultCane = mRecordingService.connect(mSensorsMap.get(CANE));
+            final boolean resultTight = mRecordingService.connect(mSensorsMap.get(TIGHT));
+            Log.d(TAG, "Connect request result with cane sensor =" + resultCane);
+            Log.d(TAG, "Connect request result with tight sensor =" + resultTight);
         }
     }
 
-    private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            final String action = intent.getAction();
-            if (RecordingService.ACTION_GATT_CONNECTED.equals(action)) {
-                mConnected = true;
-                updateConnectionState(R.string.connected);
-                updateInstructionState(R.string.instruction_wait_service);
-                invalidateOptionsMenu();
-            } else if (RecordingService.ACTION_GATT_DISCONNECTED.equals(action)) {
-                mConnected = false;
-                updateConnectionState(R.string.disconnected);
-                updateInstructionState(R.string.instruction_click_connect);
-                invalidateOptionsMenu();
-                clearUI();
-            } /*else if (RecordingService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
-                // Show all the supported services and characteristics on the user interface.
-                displayGattServices(mBluetoothLeService.getSupportedGattServices());
-                updateInstructionState(R.string.instruction_click_service);
-            }*/
-        }
-    };
-
-
-    // Stops recording received data into a file, but keeps connection and notifications open.
-    private View.OnClickListener stopClickListener = new View.OnClickListener() {
-        @Override
-        public void onClick(View v) {
-            // close data stream to file
-            Intent stopIntent =new Intent();
-            stopIntent.putExtra("order","stop");
-
-            // stops receiving notifications
-            if (mNotifyCharacteristic != null) {
-                //RecordingService.setCharacteristicNotification(mNotifyCharacteristic, false);
-                mNotifyCharacteristic = null;
-            }
-
-            // set UI
-            setInitialUI();
-            mInstructions.setText(R.string.instruction_click_service);
-            Toast.makeText(TrackingActivity.this,"Data recorded", Toast.LENGTH_LONG).show();
-        }
-    };
-
-
-    private View.OnClickListener packetClickListener = new View.OnClickListener() {
-        @Override
-        public void onClick(View v) {
-            Intent packet_activity = new Intent(TrackingActivity.this, PacketActivity.class);
-            startActivity(packet_activity);
-        }
-    };
-
-
-    // If a given GATT characteristic is selected, check for supported features.  This sample
-    // demonstrates 'Read' and 'Notify' features.  See
-    // http://d.android.com/reference/android/bluetooth/BluetoothGatt.html for the complete
-    // list of supported characteristic features.
-    /*** The data is being received from the moment we click on this -> we create the file NOW ***/
-    private final ExpandableListView.OnChildClickListener servicesListClickListner =
-            new ExpandableListView.OnChildClickListener() {
-                @Override
-                public boolean onChildClick(ExpandableListView parent, View v, int groupPosition,
-                                            int childPosition, long id) {
-                    if (mGattCharacteristics != null) {
-
-                        if ((PacketActivity.button_10000 == null) && (PacketActivity.button_12800 == null)){
-                            Toast.makeText(TrackingActivity.this, "Please choose a packet format", Toast.LENGTH_LONG).show();
-                            return true;
-                        }
-
-                        Intent createIntent= new Intent();
-                        createIntent.putExtra("order","recording");
-                        startService(createIntent);
-                        // set UI
-                        setRecordingUI();
-
-                        // discover characteristics
-                        final BluetoothGattCharacteristic characteristic =
-                                mGattCharacteristics.get(groupPosition).get(childPosition);
-                        final int charaProp = characteristic.getProperties();
-                        if ((charaProp | BluetoothGattCharacteristic.PROPERTY_READ) > 0) {
-                            // If there is an active notification on a characteristic, clear
-                            // it first so it doesn't update the data field on the user interface.
-                            if (mNotifyCharacteristic != null) {
-                                //mBluetoothLeService.setCharacteristicNotification(
-                                        //mNotifyCharacteristic, false);
-                                mNotifyCharacteristic = null;
-                            }
-                            //mBluetoothLeService.readCharacteristic(characteristic);
-                        }
-                        if ((charaProp | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
-                            mNotifyCharacteristic = characteristic;
-                            //mBluetoothLeService.setCharacteristicNotification(
-                                    //characteristic, true);
-                            // Log.w(TAG, "Characteristic support notify");
-                        } else Log.w(TAG, "Characteristic does not support notify");
-                        return true;
-                    }
-                    return false;
-                }
-            };
-
-    private void clearUI() {
-        mGattServicesList.setAdapter((SimpleExpandableListAdapter) null);
-        Intent stopIntent = new Intent();
-        stopIntent.putExtra("order","stop");
-        startService(stopIntent);
-        setInitialUI();
-    }
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
-        switch (requestCode) {
-            case REQUEST_WRITE_STORAGE: {
-                // If request is cancelled, the result arrays are empty.
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
-                    // permission was granted, yay!
-                    registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
-                    Intent stopIntent = new Intent();
-                    stopIntent.putExtra("order","connect");
-                    stopIntent.putExtra("address",mDeviceAddress);
-                    startService(stopIntent);
-                } else {
-                    finish();
-                }
-                return;
-            }
-        }
-    }
 
     @Override
     protected void onResume() {
         super.onResume();
-
-        /* MOVED TO onRequestPermissionResult*/
-        /***
-         registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
-         if (mBluetoothLeService != null) {
-         final boolean result = mBluetoothLeService.connect(mDeviceAddress);
-         Log.d(TAG, "Connect request result=" + result);
-         }
-         */
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        /*** MOVED TO onDestroy to avoid stopping recording when leaving the app
-         unregisterReceiver(mGattUpdateReceiver);*/
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        /***/
-
         unregisterReceiver(mGattUpdateReceiver);
-        /***/
+        unbindService(mServiceConnection);
+        mRecordingService = null;
     }
 
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.gatt_services, menu);
-        if (mConnected) {
+        if (mConnectedCane&&mConnectedTight) {
             menu.findItem(R.id.menu_connect).setVisible(false);
             menu.findItem(R.id.menu_disconnect).setVisible(true);
         } else {
@@ -302,47 +373,26 @@ public class TrackingActivity extends Activity {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch(item.getItemId()) {
             case R.id.menu_connect:
-                Intent connectIntent = new Intent();
-                connectIntent.putExtra("order","connect");
-                connectIntent.putExtra("address",mDeviceAddress);
-                startService(connectIntent);
+                mRecordingService.connect(mSensorsMap.get(CANE));
+                mRecordingService.connect(mSensorsMap.get(TIGHT));
                 return true;
             case R.id.menu_disconnect:
-                Intent disconnectIntent = new Intent();
-                disconnectIntent.putExtra("order","disconnect");
-                startService(disconnectIntent);
-                return true;
-            case android.R.id.home:
-                onBackPressed();
+                mRecordingService.disconnect();
                 return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
-    public void setInitialUI(){
-        // mFileName.setText("");
-        mDataField.setText(R.string.no_data);
-        mPacketFormatButton.setEnabled(true);
-        //mFileName.setEnabled(true);
-        mGattServicesList.setEnabled(true);
-        mStopButton.setEnabled(false);
-        mInstructions.setText(R.string.instruction_click_connect);
-    }
-
-    public void setRecordingUI(){
-        mPacketFormatButton.setEnabled(false);
-        //mFileName.setEnabled(false);
-        mGattServicesList.setEnabled(false);
-        mStopButton.setEnabled(true);
-        updateInstructionState(R.string.recording);
-    }
-
-
-    private void updateConnectionState(final int resourceId) {
+    private void updateConnectionState(final int resourceId, final String sensor) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                mConnectionState.setText(resourceId);
+                if (sensor.equals(CANE)) {
+                    mConnectionStateCane.setText(resourceId);
+                }
+                else{
+                    mConnectionStateTight.setText(resourceId);
+                }
             }
         });
     }
@@ -356,12 +406,108 @@ public class TrackingActivity extends Activity {
         });
     }
 
+
+    // Demonstrates how to iterate through the supported GATT Services/Characteristics.
+    // In this sample, we populate the data structure that is bound to the ExpandableListView
+    // on the UI.
+    private ArrayList<ArrayList<BluetoothGattCharacteristic>> getGattServices(List<BluetoothGattService> gattServices) {
+        ArrayList<ArrayList<BluetoothGattCharacteristic>> gattChara = null;
+        if (gattServices == null) return null;
+        gattChara = new ArrayList<>();
+
+        // Loops through available GATT Services.
+        for (BluetoothGattService gattService : gattServices) {
+            List<BluetoothGattCharacteristic> gattCharacteristics =
+                    gattService.getCharacteristics();
+            ArrayList<BluetoothGattCharacteristic> charas =
+                    new ArrayList<BluetoothGattCharacteristic>();
+
+            // Loops through available Characteristics.
+            for (BluetoothGattCharacteristic gattCharacteristic : gattCharacteristics) {
+                charas.add(gattCharacteristic);
+            }
+            gattChara.add(charas);
+        }
+        return gattChara;
+
+    }
+
     private static IntentFilter makeGattUpdateIntentFilter() {
         final IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(RecordingService.ACTION_GATT_CONNECTED);
         intentFilter.addAction(RecordingService.ACTION_GATT_DISCONNECTED);
         intentFilter.addAction(RecordingService.ACTION_GATT_SERVICES_DISCOVERED);
-        intentFilter.addAction(RecordingService.ACTION_DATA_AVAILABLE);
         return intentFilter;
     }
+
+
+
+    // return the path to the file created
+    // return null if no file name was provided or if the file cannot be created
+
+
+
+    public void setInitialUI(){
+        mStartButton.setEnabled(false);
+        mStopButton.setEnabled(false);
+        mInstructions.setText(R.string.instruction_click_connect);
+    }
+
+    public void setRecordingUI(){
+        mStartButton.setEnabled(false);
+        mStopButton.setEnabled(true);
+        updateInstructionState(R.string.recording);
+    }
+    public void setPostRecordingUI(){
+        mStartButton.setEnabled(true);
+        mStopButton.setEnabled(false);
+        updateInstructionState(R.string.instruction_click_service);
+    }
+
+    public void warningDeconnection(String sensor) {
+        Vibrator vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            VibrationEffect effect = VibrationEffect.createOneShot(1000, VibrationEffect.DEFAULT_AMPLITUDE);
+            vibrator.vibrate(effect);
+        } else vibrator.vibrate(1000);
+
+        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(TrackingActivity.this);
+
+        // set title
+        alertDialogBuilder.setTitle(R.string.disconnected);
+
+        // set dialog message
+        if(sensor.equals(CANE)){
+            alertDialogBuilder.setMessage(R.string.disconnection_cane);
+        }
+        else{
+            alertDialogBuilder.setMessage(R.string.disconnection_tight);
+        }
+        alertDialogBuilder
+                .setNeutralButton("OK",new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        dialog.cancel();
+                    }
+                });
+
+        // create alert dialog
+        AlertDialog alertDialog = alertDialogBuilder.create();
+
+        // show it
+        alertDialog.show();
+    }
+
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // Si on a appuyé sur le retour arrière
+        if(keyCode == KeyEvent.KEYCODE_BACK) {
+            Intent secondeActivite = new Intent(TrackingActivity.this,
+                    FirstActivity.class);
+            startActivity(secondeActivite);
+
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
 }

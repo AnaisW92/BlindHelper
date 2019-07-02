@@ -32,14 +32,4 @@
         android:textStyle="bold"
         android:layout_marginBottom="20dp"/>
 
-    <Button
-        android:id="@+id/ReturnMenu"
-        style="@style/blueButton"
-        android:layout_width="300dp"
-        android:layout_gravity="center"
-        android:layout_height="50dp"
-        android:text="Go back to the menu"
-        android:textStyle="bold"
-        android:layout_marginBottom="20dp"/>
-
 </LinearLayout>

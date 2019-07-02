@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Environment;
+import android.view.KeyEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -15,10 +16,9 @@ import java.io.FileInputStream;
 import java.io.InputStreamReader;
 
 
-public class TightConfigShowActivity extends Activity {
+public class ConfigTightActivity extends Activity {
     private Button ConfigTight = null;
-    private Button ValidTight = null;
-    String path = null;
+    String path = Environment.getExternalStorageDirectory().getPath() + "/Android/data/BlindHelperConfig/" + "TightSensor.txt";
     File mFile = null;
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -30,7 +30,7 @@ public class TightConfigShowActivity extends Activity {
 
             FileInputStream input = null;
 
-            mFile = new File(Environment.getExternalStorageDirectory().getPath() + "/Android/data/BlindHelperConfig/" + "TightSensor.txt");
+            mFile = new File(path);
 
             input = new FileInputStream(mFile);
             BufferedReader br = new BufferedReader(new InputStreamReader(input));
@@ -52,14 +52,13 @@ public class TightConfigShowActivity extends Activity {
                 input.close();
             }
         } catch(Exception e){
-            //e.printStackTrace();
-            Toast.makeText(TightConfigShowActivity.this, "File not Found", Toast.LENGTH_LONG).show();
+            Toast.makeText(ConfigTightActivity.this, "File not Found", Toast.LENGTH_LONG).show();
         }
         ConfigTight = (Button) findViewById(R.id.ChangeTight);
         ConfigTight.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent secondeActivite = new Intent(TightConfigShowActivity.this,
+                Intent secondeActivite = new Intent(ConfigTightActivity.this,
                         SearchActivity.class);
                 secondeActivite.putExtra("com.example.blindhelper.TYPE","TIGHT");
 // Puis on lance l'intent !
@@ -67,18 +66,17 @@ public class TightConfigShowActivity extends Activity {
             }
         });
 
-        ValidTight = (Button) findViewById(R.id.ValidateTight);
-        ValidTight.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent secondeActivite = new Intent(TightConfigShowActivity.this,
-                        ConfigActivity.class);
+    }
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // Si on a appuyé sur le retour arrière
+        if(keyCode == KeyEvent.KEYCODE_BACK) {
+            Intent secondeActivite = new Intent(ConfigTightActivity.this,
+                    ConfigMenuActivity.class);
+            startActivity(secondeActivite);
 
-// Puis on lance l'intent !
-                startActivity(secondeActivite);
-            }
-        });
-
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
     }
 
 }

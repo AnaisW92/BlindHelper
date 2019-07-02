@@ -3,6 +3,7 @@ package com.example.blindhelper;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -33,6 +34,7 @@ public class FirstActivity extends Activity {
     private File FileTight = null;
     private File FileCam = null;
     private static final int REQUEST_WRITE_STORAGE = 3;
+    private final static int REQUEST_ENABLE_BT = 1;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -42,6 +44,18 @@ public class FirstActivity extends Activity {
         IMU = (Button) findViewById(R.id.IMU);
         Camera = (Button) findViewById(R.id.Camera);
         Files = (Button) findViewById(R.id.Files);
+
+        BluetoothAdapter bt = BluetoothAdapter.getDefaultAdapter();
+        if (bt == null){
+            //Does not support Bluetooth
+            Toast.makeText(this, R.string.error_bluetooth_not_supported, Toast.LENGTH_SHORT).show();
+            //finish();
+        }else{
+            if (!bt.isEnabled()){
+                Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
+            }
+        }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_STORAGE);
@@ -96,7 +110,7 @@ public class FirstActivity extends Activity {
 // Le premier paramètre est le nom de l'activité actuelle
 // Le second est le nom de l'activité de destination
                 Intent secondeActivite = new Intent(FirstActivity.this,
-                        ConfigActivity.class);
+                        ConfigMenuActivity.class);
 
 // Puis on lance l'intent !
                 startActivity(secondeActivite);
@@ -108,7 +122,7 @@ public class FirstActivity extends Activity {
             public void onClick(View v) {
 // Le premier paramètre est le nom de l'activité actuelle
 // Le second est le nom de l'activité de destination
-                Intent openIMUActivity= new Intent(FirstActivity.this, DeviceControlActivity.class);
+                Intent openIMUActivity= new Intent(FirstActivity.this, TrackingActivity.class);
                 openIMUActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
                 startActivityIfNeeded(openIMUActivity, 0);
             }
@@ -132,23 +146,7 @@ public class FirstActivity extends Activity {
             case REQUEST_WRITE_STORAGE: {
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_DENIED) {
-                    AlertDialog.Builder builder1 = new AlertDialog.Builder(this);
-                    builder1.setMessage(R.string.error_permission_denied);
-
-                    AlertDialog alert11 = builder1.create();
-                    alert11.show();
-
-                    Handler handler = new Handler();
-                    handler.postDelayed(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            finish();
-                        }
-
-                    }, 4000); // 5000ms delay
-
-
+                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_STORAGE);
                 }
                 return;
             }

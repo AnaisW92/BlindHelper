@@ -1,18 +1,45 @@
+/*
+ * Copyright (C) 2013 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.example.blindhelper;
 
-import android.app.IntentService;
+import android.app.AlertDialog;
+import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.os.Binder;
+import android.os.Build;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Looper;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.util.Log;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -20,112 +47,209 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import static com.example.blindhelper.TrackingActivity.CANE;
+import static com.example.blindhelper.TrackingActivity.TIGHT;
 
-import static com.example.blindhelper.PacketFormat.TIME_BYTES;
 
-public class RecordingService extends IntentService {
-    private String intentExtra = null;
-
-    private BluetoothManager mBluetoothManager;
-    private BluetoothAdapter mBluetoothAdapter;
-    private BluetoothGatt mBluetoothGatt;
-    private int mConnectionState = STATE_DISCONNECTED;
+/**
+ * Service for managing connection and data communication with a GATT server hosted on a
+ * given Bluetooth LE device.
+ */
+public class RecordingService extends Service {
+    public final static int TIME_BYTES = 4;
 
     private final static String TAG = RecordingService.class.getSimpleName();
 
+    private BluetoothManager mBluetoothManager;
+    private BluetoothAdapter mBluetoothAdapter;
     private File caneFile = null;
-    private FileOutputStream output = null;
-    private String mBluetoothDeviceAddress = null;
+    private File tightFile = null;
+    private FileOutputStream output_cane=null;
+    private FileOutputStream output_tight=null;
 
-    private static final int STATE_DISCONNECTED = 0;
-    private static final int STATE_CONNECTING = 1;
-    private static final int STATE_CONNECTED = 2;
+    private Map<String, BluetoothGatt> connectedDeviceMap;
+    private Map<String, String> mSensorsMap;
+
+    private String PATH_FILE_CANE = null;
+    private String PATH_FILE_TIGHT = null;
+
 
     public final static String ACTION_GATT_CONNECTED =
-            "com.example.bluetooth.le.ACTION_GATT_CONNECTED";
+            "ACTION_GATT_CONNECTED";
     public final static String ACTION_GATT_DISCONNECTED =
-            "com.example.bluetooth.le.ACTION_GATT_DISCONNECTED";
-    public final static String ACTION_GATT_SERVICES_DISCOVERED =
-            "com.example.bluetooth.le.ACTION_GATT_SERVICES_DISCOVERED";
+            "ACTION_GATT_DISCONNECTED";
+    public final static String ACTION_GATT_SERVICES_DISCOVERED=
+            "ACTION_GATT_SERVICES_DISCOVERED";
     public final static String ACTION_DATA_AVAILABLE =
-            "com.example.bluetooth.le.ACTION_DATA_AVAILABLE";
+            "ACTION_DATA_AVAILABLE";
     public final static String EXTRA_DATA =
-            "com.example.bluetooth.le.EXTRA_DATA";
+            "EXTRA_DATA";
 
     public final static UUID UUID_HM_13 =
             UUID.fromString(SampleGattAttributes.HM_13);
 
+    // Implements callback methods for GATT events that the app cares about.  For example,
+    // connection change and services discovered.
     private final BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
-
+        @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            String intentAction;
-            if (newState == STATE_CONNECTED) {
+            String intentAction=null;
+            String sensor = null;
+            BluetoothDevice device = gatt.getDevice();
+            String address = device.getAddress();
+            if(mSensorsMap.containsValue(address)){
+                if (mSensorsMap.get(CANE).equals(address)){
+                    sensor = CANE;
+                }
+                else{
+                    sensor=TIGHT;
+                }
+            }
+
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
                 intentAction = ACTION_GATT_CONNECTED;
-                mConnectionState = STATE_CONNECTED;
-                broadcastUpdate(intentAction);
+                if (!connectedDeviceMap.containsKey(address)) {
+                    connectedDeviceMap.put(address, gatt);
+                }
+                broadcastUpdate(intentAction,sensor);
                 Log.i(TAG, "Connected to GATT server.");
                 // Attempts to discover services after successful connection.
                 Log.i(TAG, "Attempting to start service discovery:" +
-                        mBluetoothGatt.discoverServices());
+                        gatt.discoverServices());
 
-            } else if (newState == STATE_DISCONNECTED) {
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 intentAction = ACTION_GATT_DISCONNECTED;
-                mConnectionState = STATE_DISCONNECTED;
                 Log.i(TAG, "Disconnected from GATT server.");
-                broadcastUpdate(intentAction);
+                if (connectedDeviceMap.containsKey(address)) {
+                    BluetoothGatt bluetoothGatt = connectedDeviceMap.get(address);
+                    if (bluetoothGatt != null) {
+                        bluetoothGatt.close();
+                    }
+                    connectedDeviceMap.remove(address);
+                    broadcastUpdate(intentAction,sensor);
+                }
             }
+        }
+
+        @Override
+        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                BluetoothDevice device = gatt.getDevice();
+                String address = device.getAddress();
+                String sensor=null;
+                if(mSensorsMap.containsValue(address)){
+                    if (mSensorsMap.get(CANE).equals(address)){
+                        sensor = CANE;
+                    }
+                    else{
+                        sensor=TIGHT;
+                    }
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
+                }
+                broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED,sensor);
+            } else {
+                Log.w(TAG, "onServicesDiscovered received: " + status);
+            }
+        }
+
+
+        @Override
+        // callback for setCharacteristicNotification
+        public void onCharacteristicChanged(BluetoothGatt gatt,
+                                            BluetoothGattCharacteristic characteristic) {
+            //Log.w(TAG, "ON CHANGED");
+            BluetoothDevice device = gatt.getDevice();
+            String address = device.getAddress();
+            broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic, address);
         }
     };
 
-    /**
-     * Constructeur
-     */
-    RecordingService() {
-        super("RecordingService");
-    }
-
-    /**
-     * Methode obligatoire : traitement des intent reçus
-     *
-     * @param intent
-     */
     @Override
-    protected void onHandleIntent(Intent intent) {
-        intentExtra = intent.getStringExtra("order");
-        if (intentExtra.equals("connect")) {
-            initialize();
-            connect(intent.getStringExtra("address"));
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        super.onStartCommand(intent, flags, startId);
+//
+        return START_STICKY;
+    }
 
-        } else if (intentExtra.equals("disconnect")) {
-            disconnect();
+    // for ACTION_GATT_SERVICE_DISCOVERED, ACTION_GATT_CONNECTED, ACTION_GATT_DISCONNECTED
+    private void broadcastUpdate(final String action) {
+        final Intent intent = new Intent(action);
+        sendBroadcast(intent);
+    }
 
-        } else if (intentExtra.equals("record")) {
-            createDataFile();
-        } else if (intentExtra.equals("stop")) {
-            stopRecording();
-        } else if (intentExtra.equals("close")) {
+    // for ACTION_GATT_SERVICE_DISCOVERED
+    private void broadcastUpdate(final String action,final String sensor) {
+        if (sensor==null){
+            broadcastUpdate(action);
+        }
+        final Intent intent = new Intent(action);
+        intent.putExtra(EXTRA_DATA,sensor);
+        sendBroadcast(intent);
+    }
+
+    // for ACTION_DATA_AVAILABLE (onCharacteristicChanged)
+    private void broadcastUpdate(final String action, final BluetoothGattCharacteristic characteristic,String address) {
+        final Intent intent = new Intent(action);
+        Log.v("AndroidLE", "broadcastUpdate()");
+        final byte[] data = characteristic.getValue();
+        Log.v("AndroidLE", "data.Length: " + data.length);
+
+        if (data != null && data.length > 0) {
+            if (data.length == 16) {
+                if(mSensorsMap.get(CANE).equals(address)){
+                    writeFile(data, TIME_BYTES,CANE);
+                }
+                else{
+                    writeFile(data, TIME_BYTES, TIGHT);
+                }
+            } else Log.v("FILE", "data NULL");
 
         }
     }
+
+    public class LocalBinder extends Binder {
+        RecordingService getService() {
+            return RecordingService.this;
+        }
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return mBinder;
+    }
+
+    @Override
+    public boolean onUnbind(Intent intent) {
+        // After using a given device, you should make sure that BluetoothGatt.close() is called
+        // such that resources are cleaned up properly.  In this particular example, close() is
+        // invoked when the UI is disconnected from the Service.
+        close();
+        return super.onUnbind(intent);
+    }
+
+    private final IBinder mBinder = new LocalBinder();
 
     /**
-     * After using a given BLE device, the app must call this method to ensure resources are
-     * released properly.
+     * Initializes a reference to the local Bluetooth adapter.
+     *
+     * @return Return true if the initialization is successful.
      */
-    public void close() {
-        if (mBluetoothGatt == null) {
-            return;
-        }
-        mBluetoothGatt.close();
-        mBluetoothGatt = null;
-    }
-
-    public boolean initialize() {
+    public boolean initialize(Map<String,String> sensors) {
         // For API level 18 and above, get a reference to BluetoothAdapter through
         // BluetoothManager.
+
         if (mBluetoothManager == null) {
             mBluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+            connectedDeviceMap = new HashMap<String, BluetoothGatt>();
+            mSensorsMap = sensors;
             if (mBluetoothManager == null) {
                 Log.e(TAG, "Unable to initialize BluetoothManager.");
                 return false;
@@ -141,62 +265,32 @@ public class RecordingService extends IntentService {
         return true;
     }
 
-    // for ACTION_GATT_SERVICE_DISCOVERED, ACTION_GATT_CONNECTED, ACTION_GATT_DISCONNECTED
-    private void broadcastUpdate(final String action) {
-        final Intent intent = new Intent(action);
-        sendBroadcast(intent);
-    }
-
-    // for ACTION_DATA_AVAILABLE (onCharacteristicRead, onCharacteristicChanged)
-    private void broadcastUpdate(final String action, final BluetoothGattCharacteristic characteristic) {
-        final Intent intent = new Intent(action);
-        Log.v("AndroidLE", "broadcastUpdate()");
-        final byte[] data = characteristic.getValue();
-        Log.v("AndroidLE", "data.Length: " + data.length);
-
-        if (data != null && data.length > 0) {
-
-            if (PacketActivity.button_12800.isChecked()) {
-                if (data.length == 16) {
-                    final byte[] newData = data;
-                    if (newData != null) {
-                        writeFile12800(data, TIME_BYTES);
-                    } else Log.v("FILE", "data NULL");
-                }
-            }
-        }
-
-    }
-
-    private boolean connect(final String address) {
+    /**
+     * Connects to the GATT server hosted on the Bluetooth LE device.
+     *
+     * @param address The device address of the destination device.
+     *
+     * @return Return true if the connection is initiated successfully. The connection result
+     *         is reported asynchronously through the
+     *         {@code BluetoothGattCallback#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)}
+     *         callback.
+     */
+    public boolean connect(final String address) {
         if (mBluetoothAdapter == null || address == null) {
             Log.w(TAG, "BluetoothAdapter not initialized or unspecified address.");
             return false;
         }
-
-        // Previously connected device.  Try to reconnect.
-        if (mBluetoothDeviceAddress != null && address.equals(mBluetoothDeviceAddress)
-                && mBluetoothGatt != null) {
-            Log.d(TAG, "Trying to use an existing mBluetoothGatt for connection.");
-            if (mBluetoothGatt.connect()) {
-                mConnectionState = STATE_CONNECTING;
-                return true;
-            } else {
-                return false;
-            }
-        }
-
-        final BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
+        //Device already known or not ?
+        BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
         if (device == null) {
             Log.w(TAG, "Device not found.  Unable to connect.");
             return false;
         }
-        // We want to directly connect to the device, so we are setting the autoConnect
-        // parameter to false.
-        mBluetoothGatt = device.connectGatt(this, false, mGattCallback);
-        Log.d(TAG, "Trying to create a new connection.");
-        mBluetoothDeviceAddress = address;
-        mConnectionState = STATE_CONNECTING;
+        int connectionState = mBluetoothManager.getConnectionState(device, BluetoothProfile.GATT);
+        if(connectionState == BluetoothProfile.STATE_DISCONNECTED ){
+            device.connectGatt(this, false, mGattCallback);
+            Log.d(TAG, "Trying to create a new connection.");
+        }
         return true;
     }
 
@@ -206,30 +300,87 @@ public class RecordingService extends IntentService {
      * {@code BluetoothGattCallback#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)}
      * callback.
      */
-    private void disconnect() {
-        if (mBluetoothAdapter == null || mBluetoothGatt == null) {
+    public void disconnect() {
+        if (mBluetoothAdapter == null || connectedDeviceMap.isEmpty()) {
             Log.w(TAG, "BluetoothAdapter not initialized");
             return;
         }
-        mBluetoothGatt.disconnect();
+        connectedDeviceMap.get(mSensorsMap.get(CANE)).disconnect();
+        connectedDeviceMap.get(mSensorsMap.get(TIGHT)).disconnect();
     }
 
-    public void writeFile(StringBuilder stringData) {
-        try {
-            //Log.v("FILE", stringData.toString());
-            if (output != null)
-                output.write(stringData.toString().getBytes());
-
-        } catch (IOException e) {
-            e.printStackTrace();
+    /**
+     * After using a given BLE device, the app must call this method to ensure resources are
+     * released properly.
+     */
+    public void close() {
+        if (connectedDeviceMap.isEmpty()) {
+            return;
+        }
+        String address = null;
+        address = mSensorsMap.get(CANE);
+        if(connectedDeviceMap.containsKey(address)){
+            connectedDeviceMap.get(address).close();
+            connectedDeviceMap.remove(address);
+        }
+        address = mSensorsMap.get(TIGHT);
+        if(connectedDeviceMap.containsKey(address)){
+            connectedDeviceMap.get(address).close();
+            connectedDeviceMap.remove(address);
         }
     }
 
-    public void writeFile12800(byte[] data, int timeBytes) {
+
+
+    void showToast(final int message) {
+
+        Handler handler = new Handler(Looper.getMainLooper());
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(RecordingService.this, message, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+
+    /**
+     * Enables or disables notification on a give characteristic.
+     *
+     * @param characteristic Characteristic to act on.
+     * @param enabled If true, enable notification.  False otherwise.
+     */
+    public void setCharacteristicNotification(BluetoothGattCharacteristic characteristic,
+                                              boolean enabled, String address) {
+        BluetoothGatt gatt = connectedDeviceMap.get(address);
+        if (mBluetoothAdapter == null || gatt == null) {
+            Log.w(TAG, "BluetoothAdapter not initialized");
+            return;
+        }
+        gatt.setCharacteristicNotification(characteristic, enabled);
+        Log.w(TAG, "NOTIF ENABLED : " + String.valueOf(enabled));
+        Log.v(TAG, characteristic.getUuid().toString()); //beb...
+
+
+        // This is specific to the remote device you are using.
+        if (UUID_HM_13.equals(characteristic.getUuid())) {
+            BluetoothGattDescriptor descriptor = characteristic.getDescriptor(
+                    UUID.fromString(SampleGattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
+            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+            gatt.writeDescriptor(descriptor);
+            Log.w(TAG, "DESCRIPTOR OK");
+        }
+
+/***********************************************************************************************************/
+
+    }
+
+
+    public void writeFile(byte[] data, int timeBytes,String sensors){
         if (data.length == 16) {
             final StringBuilder stringData = new StringBuilder(data.length + (data.length) / 2); // memory for data, for comas, for time
             int storeData[] = new int[(data.length) / 2]; // to store integers (2 bytes)
-            long seqNbr = (long) ((((data[data.length - 1] & 0xFFL)) << 24) + ((data[data.length - 2] & 0xFFL) << 16) + ((data[data.length - 3] & 0xFFL) << 8) + (data[data.length - 4] & 0xFFL));
+            long seqNbr = (((data[data.length - 1] & 0xFFL)) << 24) + ((data[data.length - 2] & 0xFFL) << 16) + ((data[data.length - 3] & 0xFFL) << 8) + (data[data.length - 4] & 0xFFL);
 
             for (int i = 0; i < (data.length - timeBytes); i += 2) {
                 // Store unsigned int
@@ -246,99 +397,89 @@ public class RecordingService extends IntentService {
             stringData.append(seqNbr);
             stringData.append("\n");
 
-            writeFile(stringData);
+            if (sensors.equals(CANE)) {
+                if (output_cane != null) {
+                    try {
+                        output_cane.write(stringData.toString().getBytes());
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+            else{
+                if(output_tight !=null) {
+                    try {
+                        output_tight.write(stringData.toString().getBytes());
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
         }
     }
 
-    public void stopRecording() {
+    public void stopRecording(){
         try {
-            if (output != null)
-                output.close();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
+            if (output_cane != null)
+                output_cane.close();
+        } catch (Exception e) {
             e.printStackTrace();
         }
-        output = null;
+        try {
+            if (output_tight != null)
+                output_tight.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        output_cane = null;
+        output_tight = null;
     }
 
-    public String createDataFile() {
-        String path = null;
-        //String file_name = mFileName.getText().toString();
+    public boolean createDataFile(){
+        String path_cane = null;
+        String path_tight = null;
 
-        String file_name = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
-        file_name = "cane_" + file_name;
-
-        /*if(TextUtils.isEmpty(file_name)) {
-            mFileName.setError("Required");
-            return null;
-        }*/
+        String file_name_cane = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
+        file_name_cane = "cane_" + file_name_cane;
+        String file_name_tight = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
+        file_name_tight = "tight_" + file_name_tight;
 
         // If there is external and writable storage
-        if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()) && !Environment.MEDIA_MOUNTED_READ_ONLY.equals(Environment.getExternalStorageState())) {
+        if(Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()) && !Environment.MEDIA_MOUNTED_READ_ONLY.equals(Environment.getExternalStorageState())) {
             try {
-                path = Environment.getExternalStorageDirectory().getPath() + "/Android/data/BlindHelperDataCane/" + file_name + ".txt";
-                caneFile = new File(path);
-
+                path_cane = Environment.getExternalStorageDirectory().getPath() + "/Android/data/BlindHelperDataCane/" + file_name_cane+".txt";
+                path_tight = Environment.getExternalStorageDirectory().getPath() + "/Android/data/BlindHelperDataTight/" + file_name_tight+".txt"; ;
+                caneFile = new File(path_cane);
                 caneFile.createNewFile(); // create new file if it does not already exists
+                tightFile = new File(path_tight);
+                tightFile.createNewFile(); // create new file if it does not already exists
 
-                output = new FileOutputStream(caneFile);
+                output_cane = new FileOutputStream(caneFile);
+                output_tight = new FileOutputStream(tightFile);
                 Log.v("FILE", "File created");
-                //path = caneFile.getPath();
-                //DeviceControlActivity.mDataField.setText("Saving to : " + path);
-
 
             } catch (IOException e) {
-                e.printStackTrace();
+                return false;
             }
         } else {
-            //Toast.makeText(BluetoothLeService.this, R.string.error_no_ext_storage, Toast.LENGTH_LONG).show();
+            showToast(R.string.error_no_ext_storage);
+            return false;
         }
-        return path;
-    }
-
-
-    /**
-     * Request a read on a given {@code BluetoothGattCharacteristic}. The read result is reported
-     * asynchronously through the {@code BluetoothGattCallback#onCharacteristicRead(android.bluetooth.BluetoothGatt, android.bluetooth.BluetoothGattCharacteristic, int)}
-     * callback.
-     *
-     * @param characteristic The characteristic to read from.
-     */
-    public void readCharacteristic(BluetoothGattCharacteristic characteristic) {
-        if (mBluetoothAdapter == null || mBluetoothGatt == null) {
-            Log.w(TAG, "BluetoothAdapter not initialized");
-            return;
-        }
-        mBluetoothGatt.readCharacteristic(characteristic);
-        Log.w(TAG, "READ");
+        return true;
     }
 
     /**
-     * Enables or disables notification on a give characteristic.
+     * Retrieves a list of supported GATT services on the connected device. This should be
+     * invoked only after {@code BluetoothGatt#discoverServices()} completes successfully.
      *
-     * @param characteristic Characteristic to act on.
-     * @param enabled        If true, enable notification.  False otherwise.
+     * @return A {@code List} of supported services.
      */
-    public void setCharacteristicNotification(BluetoothGattCharacteristic characteristic,
-                                              boolean enabled) {
-        if (mBluetoothAdapter == null || mBluetoothGatt == null) {
-            Log.w(TAG, "BluetoothAdapter not initialized");
-            return;
-        }
-        mBluetoothGatt.setCharacteristicNotification(characteristic, enabled);
-        Log.w(TAG, "NOTIF ENABLED : " + String.valueOf(enabled));
-        Log.v(TAG, characteristic.getUuid().toString()); //beb...
+    public List<BluetoothGattService> getSupportedGattServices(String address) {
+        BluetoothGatt gatt = connectedDeviceMap.get(address);
+        if (gatt == null) return null;
 
-        // This is specific to the remote device you are using.
-        if (UUID_HM_13.equals(characteristic.getUuid())) {
-            BluetoothGattDescriptor descriptor = characteristic.getDescriptor(
-                    UUID.fromString(SampleGattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
-            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-            mBluetoothGatt.writeDescriptor(descriptor);
-            Log.w(TAG, "DESCRIPTOR OK");
-        }
+        return gatt.getServices();
     }
-
-
 }

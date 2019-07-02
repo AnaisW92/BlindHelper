@@ -23,16 +23,14 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".ConfigActivity"/>
-        <activity android:name=".DeviceControlActivity"/>
+        <activity android:name=".ConfigMenuActivity"/>
+        <activity android:name=".ConfigCaneActivity"/>
+        <activity android:name=".ConfigTightActivity"/>
         <activity android:name=".SearchActivity"/>
-        <activity android:name=".PacketActivity"/>
-        <activity android:name=".TightConfigShowActivity"/>
-        <activity android:name=".ConfigShowActivity"/>
         <activity android:name=".FilesActivity"/>
         <activity android:name=".FileOpenActivity"/>
-        <!--<activity android:name=".TrackingActivity"/>-->
-        <service android:name=".BluetoothLeService" android:enabled="true"/>
-        <!--<service android:name=".RecordingService" android:enabled="true"/>-->
+        <activity android:name=".TrackingActivity"/>
+        <service android:name=".RecordingService" android:enabled="true"/>
+
     </application>
 </manifest>

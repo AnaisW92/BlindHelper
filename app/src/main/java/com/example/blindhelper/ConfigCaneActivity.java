@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Environment;
+import android.view.KeyEvent;
 import android.widget.Button;
 import android.view.View;
 import android.widget.TextView;
@@ -17,7 +18,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 
 
-public class ConfigShowActivity extends Activity {
+public class ConfigCaneActivity extends Activity {
     private Button ConfigCane = null;
     private Button ValidCane = null;
     String path = null;
@@ -55,7 +56,7 @@ public class ConfigShowActivity extends Activity {
             }
         } catch(Exception e){
             //e.printStackTrace();
-            Toast.makeText(ConfigShowActivity.this, "File not Found", Toast.LENGTH_LONG).show();
+            Toast.makeText(ConfigCaneActivity.this, "File not Found", Toast.LENGTH_LONG).show();
         }
         ConfigCane = (Button) findViewById(R.id.ChangeCane);
         ConfigCane.setOnClickListener(new View.OnClickListener() {
@@ -63,7 +64,7 @@ public class ConfigShowActivity extends Activity {
             public void onClick(View v) {
 // Le premier paramÃ¨tre est le nom de l'activitÃ© actuelle
 // Le second est le nom de l'activitÃ© de destination
-                Intent secondeActivite = new Intent(ConfigShowActivity.this,
+                Intent secondeActivite = new Intent(ConfigCaneActivity.this,
                         SearchActivity.class);
                 secondeActivite.putExtra("com.example.blindhelper.TYPE","CANE");
 
@@ -72,20 +73,18 @@ public class ConfigShowActivity extends Activity {
             }
         });
 
-        ValidCane = (Button) findViewById(R.id.ValidateCane);
-        ValidCane.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-// Le premier paramÃ¨tre est le nom de l'activitÃ© actuelle
-// Le second est le nom de l'activitÃ© de destination
-                Intent secondeActivite = new Intent(ConfigShowActivity.this,
-                        ConfigActivity.class);
+    }
 
-// Puis on lance l'intent !
-                startActivity(secondeActivite);
-            }
-        });
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // Si on a appuyé sur le retour arrière
+        if(keyCode == KeyEvent.KEYCODE_BACK) {
+            Intent secondeActivite = new Intent(ConfigCaneActivity.this,
+                    ConfigMenuActivity.class);
+            startActivity(secondeActivite);
 
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
     }
 
 }

@@ -33,13 +33,6 @@ public class SampleGattAttributes {
     public static String CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
 
     static {
-        /*** HM-13 ***/
-        /*// Sample Services.
-        attributes.put("0000ffe0-0000-1000-8000-00805f9b34fb", "HM-13 Service");
-        attributes.put("0000180a-0000-1000-8000-00805f9b34fb", "Device Information Service");
-        // Sample Characteristics.
-        attributes.put(HM_13, "HM-13 Module");
-        attributes.put("00002a29-0000-1000-8000-00805f9b34fb", "Manufacturer Name String");*/
 
         /*** ESP32 ***/
         // Sample Services.

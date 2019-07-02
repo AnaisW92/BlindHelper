@@ -246,7 +246,7 @@
                         e.printStackTrace();
                     }
                     Intent affich_conf = new Intent(SearchActivity.this,
-                            ConfigShowActivity.class);
+                            ConfigCaneActivity.class);
 
                     startActivity(affich_conf);
                 }
@@ -266,7 +266,7 @@
                         e.printStackTrace();
                     }
                     Intent affich_conf = new Intent(SearchActivity.this,
-                            TightConfigShowActivity.class);
+                            ConfigTightActivity.class);
 
                     startActivity(affich_conf);
                 }
