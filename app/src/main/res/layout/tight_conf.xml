@@ -50,7 +50,7 @@
         android:id="@+id/ChangeTight"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Configure" />
+        android:text="Configure"/>
 
 
 </LinearLayout>

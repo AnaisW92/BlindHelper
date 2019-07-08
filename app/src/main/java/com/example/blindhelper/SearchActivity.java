@@ -230,7 +230,7 @@
                 String type = i.getStringExtra("com.example.blindhelper.TYPE");
                 final BluetoothDevice device = mLeDeviceListAdapter.getDevice(position);
                 if (device == null) return;
-                if(type.equals("CANE")) {
+                if (type.equals("CANE")) {
                     try {
                         FileOutputStream output = null;
                         File mFile = new File(Environment.getExternalStorageDirectory().getPath() + "/Android/data/BlindHelperConfig/" + "CaneSensor.txt");
@@ -249,8 +249,7 @@
                             ConfigCaneActivity.class);
 
                     startActivity(affich_conf);
-                }
-                else if(type.equals("TIGHT")){
+                } else if (type.equals("TIGHT")) {
                     try {
                         FileOutputStream output = null;
                         File mFile = new File(Environment.getExternalStorageDirectory().getPath() + "/Android/data/BlindHelperConfig/" + "TightSensor.txt");
@@ -270,17 +269,6 @@
 
                     startActivity(affich_conf);
                 }
-
-        /*final BluetoothDevice device = mLeDeviceListAdapter.getDevice(position);
-        if (device == null) return;
-        final Intent intent = new Intent(this, DeviceControlActivity.class);
-        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
-        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_ADDRESS, device.getAddress());
-        if (mScanning) {
-            mBluetoothAdapter.stopLeScan(mLeScanCallback);
-            mScanning = false;
-        }
-        startActivity(intent);*/
             }
 
             private void scanLeDevice(final boolean enable) {

@@ -47,6 +47,19 @@ public class ConfigMenuActivity extends Activity {
             }
         });
 
+        CamConnect.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+// Le premier paramètre est le nom de l'activité actuelle
+// Le second est le nom de l'activité de destination
+                Intent camintent = new Intent(ConfigMenuActivity.this,
+                        CamConnectActivity.class);
+
+// Puis on lance l'intent !
+                startActivity(camintent);
+            }
+        });
+
     }
 
     public boolean onKeyDown(int keyCode, KeyEvent event) {

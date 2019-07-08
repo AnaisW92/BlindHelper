@@ -138,6 +138,16 @@ public class FirstActivity extends Activity {
             }
         });
 
+        Camera.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent secondeActivite = new Intent(FirstActivity.this,
+                        CameraStreamingActivity.class);
+
+                startActivity(secondeActivite);
+            }
+        });
+
     }
 
     @Override
